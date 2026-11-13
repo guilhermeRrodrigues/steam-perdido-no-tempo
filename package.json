@@ -1,0 +1,12 @@
+{
+  "name": "perdido-no-tempo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jogo STEAM 'Perdido no tempo': controle por ultrassônico no ESP32 via Web Serial.",
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes serve -l 5173 .",
+    "test": "node tools/test-protocol.mjs",
+    "test:firmware": "bash tools/test-firmware.sh"
+  }
+}

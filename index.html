@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perdido no tempo</title>
+  <meta name="description" content="Jogo STEAM: a jornada do Seu Antônio, um aposentado, por uma cidade hipertecnológica. Controle com a mão e um sensor ultrassônico no ESP32.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Perdido no tempo</div>
+    <div class="conn">
+      <span id="status" class="pill pill-off">Controle: desconectado</span>
+      <button id="btn-connect" class="btn">🔌 Conectar controle</button>
+      <button id="btn-connect-all" class="link" title="Use se a sua placa não aparecer na lista">não apareceu?</button>
+      <button id="btn-sound" class="link" title="Ligar/desligar o som">🔊</button>
+    </div>
+  </header>
+
+  <div id="warn" class="warn" hidden>
+    ⚠ Este navegador não tem <b>Web Serial</b>, então o controle USB não funciona aqui.
+    Abra no <b>Google Chrome</b> ou no <b>Microsoft Edge</b> no computador. Por enquanto, jogue no teclado.
+  </div>
+  <div id="hint" class="hint" hidden></div>
+
+  <main class="stage">
+    <canvas id="game" width="960" height="540" tabindex="0" aria-label="Tela do jogo Perdido no tempo"></canvas>
+  </main>
+
+  <footer class="help">
+    Mão no sensor: distância escolhe • parada ~1 s confirma • toquinho rápido no ar volta.
+    Teclado: ↑ ↓ escolhem • Enter confirma • Esc volta • Q/E/R simulam a mão.
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
