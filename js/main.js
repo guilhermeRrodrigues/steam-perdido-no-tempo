@@ -1,6 +1,6 @@
 // Ponto de entrada: liga o controle, o teclado, o jogo e a barra de conexão.
 
-import { Controller, serialSupported } from './serial.js';
+import { Controller, serialSupported, bleSupported } from './serial.js';
 import { Input } from './input.js';
 import { Feedback } from './feedback.js';
 import { Game } from './game.js';
@@ -16,6 +16,7 @@ const game = new Game(canvas, input, fx, controller);
 const statusEl = $('status');
 const btnConnect = $('btn-connect');
 const btnAll = $('btn-connect-all');
+const btnBle = $('btn-ble');
 const hint = $('hint');
 
 function showHint(msg) {
@@ -24,21 +25,23 @@ function showHint(msg) {
 }
 
 controller.addEventListener('status', (e) => {
-  const { status, detail, board } = e.detail;
+  const { status, detail, board, link } = e.detail;
+  const via = link === 'ble' ? ' por Bluetooth' : link === 'usb' ? ' pelo USB' : '';
   const map = {
-    ready: ['pill-on', `Controle conectado${board && board !== '?' ? ' (' + board + ')' : ''}`],
+    ready: ['pill-on', `Controle conectado${via}`],
     opened: ['pill-wait', 'Porta aberta, esperando a placa...'],
     connecting: ['pill-wait', 'Conectando...'],
     disconnected: ['pill-off', 'Controle: desconectado (teclado ativo)'],
     error: ['pill-err', 'Erro na conexão'],
-    unsupported: ['pill-off', 'Sem Web Serial: só teclado'],
+    unsupported: ['pill-off', 'Sem USB/Bluetooth: só teclado'],
   };
   const [cls, label] = map[status] || ['pill-off', status];
   statusEl.className = 'pill ' + cls;
   statusEl.textContent = label;
   const on = status === 'ready' || status === 'opened' || status === 'connecting';
-  btnConnect.hidden = on || status === 'unsupported';
-  btnAll.hidden = on || status === 'unsupported';
+  btnConnect.hidden = on || !serialSupported();
+  btnAll.hidden = on || !serialSupported();
+  btnBle.hidden = on || !bleSupported();
   showHint(status === 'ready' ? '' : detail);
   if (status === 'ready') {
     fx.success();
@@ -49,6 +52,7 @@ controller.addEventListener('status', (e) => {
 
 btnConnect.addEventListener('click', () => controller.requestAndConnect(false));
 btnAll.addEventListener('click', () => controller.requestAndConnect(true));
+btnBle.addEventListener('click', () => controller.requestBle());
 
 const btnSound = $('btn-sound');
 btnSound.addEventListener('click', () => {
@@ -57,10 +61,13 @@ btnSound.addEventListener('click', () => {
 });
 
 if (!serialSupported()) {
-  $('warn').hidden = false;
   btnConnect.hidden = true;
   btnAll.hidden = true;
-  statusEl.textContent = 'Sem Web Serial: só teclado';
+}
+if (!bleSupported()) btnBle.hidden = true;
+if (!serialSupported() && !bleSupported()) {
+  $('warn').hidden = false;
+  statusEl.textContent = 'Sem USB/Bluetooth no navegador: só teclado';
 }
 controller.init();
 

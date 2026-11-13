@@ -226,11 +226,11 @@ export class Game {
     text(g, 'Testar controle', 40, 60, { size: 30, weight: 'bold', color: COLORS.accent });
     const st = this.controller.status;
     const statusText = {
-      ready: `Controle conectado (${this.controller.board || '?'})`,
+      ready: `Controle conectado ${this.controller.link === 'ble' ? 'por Bluetooth' : 'pelo USB'} (${this.controller.board || '?'})`,
       opened: 'Porta aberta, esperando a placa responder...',
       connecting: 'Conectando...',
       disconnected: 'Controle desconectado: usando teclado',
-      unsupported: 'Navegador sem Web Serial: usando teclado',
+      unsupported: 'Navegador sem USB/Bluetooth: usando teclado',
       error: 'Erro na conexão',
     }[st] || st;
     text(g, statusText, 40, 92, { size: 16, color: st === 'ready' ? COLORS.good : COLORS.muted });

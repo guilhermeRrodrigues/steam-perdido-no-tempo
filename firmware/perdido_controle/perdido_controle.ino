@@ -18,7 +18,26 @@
       RESET          -> volta ao normal (sem atraso, LED apagado, sonar ligado)
 
   Velocidade da serial: 115200 baud.
+
+  BLUETOOTH (BLE): as MESMAS mensagens e comandos tambem funcionam sem fio.
+    - Nome do aparelho: "PerdidoNoTempo"
+    - Servico estilo "Nordic UART": 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
+        RX (o jogo escreve comandos):  6E400002-...   TX (a placa notifica mensagens): 6E400003-...
+    - Serve para jogar num computador que nao tem o driver USB da placa: o cabo so da energia.
+    - Na Arduino IDE escolha: Ferramentas -> Partition Scheme -> "Huge APP (3MB No OTA/1MB SPIFFS)".
 */
+
+#if defined(ARDUINO_ARCH_ESP32)
+  #define USAR_BLE 1
+#else
+  #define USAR_BLE 0   // (no simulador de testes do PC nao ha Bluetooth)
+#endif
+
+#if USAR_BLE
+  #include <BLEDevice.h>
+  #include <BLEServer.h>
+  #include <BLE2902.h>
+#endif
 
 // ---------------- Pinos ----------------
 const uint8_t PINO_TRIG = 5;    // HC-SR04 Trig  (D5)
@@ -30,6 +49,71 @@ const uint8_t PINO_LED = 2;     // LED azul da propria placa (algumas placas nao
 const unsigned long INTERVALO_MEDIDA = 60;   // ms entre medidas
 const unsigned long BATIMENTO = 400;         // ms: reenvia a distancia mesmo sem mudar (o jogo sabe que esta vivo)
 const int DIST_MAXIMA = 80;                  // cm: acima disso conta como "nada na frente"
+
+// ---------------- Saida: USB serial + Bluetooth ----------------
+void executarComando(char* cmd);
+void receberCaractere(char c);
+
+#if USAR_BLE
+  #define NUS_SERVICO "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+  #define NUS_RX      "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+  #define NUS_TX      "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+  BLECharacteristic* bleTx = nullptr;
+  bool bleConectado = false;
+
+  class EventosServidor : public BLEServerCallbacks {
+    void onConnect(BLEServer*) override { bleConectado = true; }
+    void onDisconnect(BLEServer* s) override {
+      bleConectado = false;
+      s->getAdvertising()->start();  // volta a aparecer para o jogo reconectar
+    }
+  };
+
+  class EventosRx : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* c) override {
+      auto v = c->getValue();  // String (core 3.x) ou std::string (core 2.x): os dois tem length() e []
+      for (size_t i = 0; i < v.length(); i++) receberCaractere(v[i]);
+    }
+  };
+
+  void iniciarBle() {
+    BLEDevice::init("PerdidoNoTempo");
+    BLEServer* servidor = BLEDevice::createServer();
+    servidor->setCallbacks(new EventosServidor());
+    BLEService* servico = servidor->createService(NUS_SERVICO);
+    bleTx = servico->createCharacteristic(NUS_TX, BLECharacteristic::PROPERTY_NOTIFY);
+    bleTx->addDescriptor(new BLE2902());
+    BLECharacteristic* rx = servico->createCharacteristic(
+        NUS_RX, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+    rx->setCallbacks(new EventosRx());
+    servico->start();
+    BLEAdvertising* anuncio = BLEDevice::getAdvertising();
+    anuncio->addServiceUUID(NUS_SERVICO);
+    anuncio->setScanResponse(true);
+    BLEDevice::startAdvertising();
+  }
+
+  void bleEnviar(const char* texto) {
+    if (!bleConectado || !bleTx) return;
+    // Uma notificacao leva no maximo 20 bytes: mandamos a linha (com \n) em pedacos
+    char buf[48];
+    int n = snprintf(buf, sizeof(buf), "%s\n", texto);
+    for (int i = 0; i < n; i += 20) {
+      int tam = min(20, n - i);
+      bleTx->setValue((uint8_t*)buf + i, tam);
+      bleTx->notify();
+    }
+  }
+#else
+  void iniciarBle() {}
+  void bleEnviar(const char*) {}
+#endif
+
+/** Manda uma linha para o jogo, pelo cabo e pelo Bluetooth. */
+void saida(const char* texto) {
+  Serial.println(texto);
+  bleEnviar(texto);
+}
 
 // ---------------- Fila de saida (para o atraso) ----------------
 // Tudo que vai para o PC passa por esta fila. Com DELAY:600, cada mensagem sai 0,6 s depois.
@@ -44,7 +128,7 @@ uint8_t filaInicio = 0, filaQtd = 0;
 
 void enfileirar(const char* texto) {
   if (atrasoMs == 0 && filaQtd == 0) {  // sem atraso: manda na hora
-    Serial.println(texto);
+    saida(texto);
     return;
   }
   if (filaQtd >= TAM_FILA) {            // fila cheia: joga fora a mais velha
@@ -60,7 +144,7 @@ void enfileirar(const char* texto) {
 
 void enviarFila() {
   while (filaQtd > 0 && (long)(millis() - fila[filaInicio].quando) >= 0) {
-    Serial.println(fila[filaInicio].texto);
+    saida(fila[filaInicio].texto);
     filaInicio = (filaInicio + 1) % TAM_FILA;
     filaQtd--;
   }
@@ -142,7 +226,7 @@ char linha[32];
 uint8_t tamLinha = 0;
 
 void enviarHello() {
-  Serial.println("HELLO:PERDIDO:2:ESP32");
+  saida("HELLO:PERDIDO:2:ESP32");
 }
 
 void executarComando(char* cmd) {
@@ -152,15 +236,16 @@ void executarComando(char* cmd) {
   if (strcmp(cmd, "HELLO") == 0) {
     enviarHello();
   } else if (strcmp(cmd, "PING") == 0) {
-    Serial.println("PONG");
+    saida("PONG");
   } else if (strcmp(cmd, "SONAR") == 0 && valor) {
     sonarLigado = atoi(valor) != 0;
     ultimaDist = -2;
-    Serial.println(sonarLigado ? "OK:SONAR:1" : "OK:SONAR:0");
+    saida(sonarLigado ? "OK:SONAR:1" : "OK:SONAR:0");
   } else if (strcmp(cmd, "DELAY") == 0 && valor) {
     atrasoMs = constrain(atol(valor), 0L, 3000L);
-    Serial.print("OK:DELAY:");
-    Serial.println(atrasoMs);
+    char msg[24];
+    snprintf(msg, sizeof(msg), "OK:DELAY:%lu", atrasoMs);
+    saida(msg);
   } else if (strcmp(cmd, "LED") == 0 && valor) {
     piscadasRestantes = 0;
     digitalWrite(PINO_LED, atoi(valor) ? HIGH : LOW);
@@ -173,24 +258,44 @@ void executarComando(char* cmd) {
     sonarLigado = true;
     piscadasRestantes = 0;
     digitalWrite(PINO_LED, LOW);
-    Serial.println("OK:RESET");
+    saida("OK:RESET");
   } else if (cmd[0] != '\0') {
-    Serial.print("ERR:");
-    Serial.println(cmd);
+    char msg[40];
+    snprintf(msg, sizeof(msg), "ERR:%s", cmd);
+    saida(msg);
+  }
+}
+
+// Comandos do cabo e do Bluetooth chegam aqui, letra por letra.
+// (Do Bluetooth eles chegam em outra "tarefa" do ESP32; guardamos numa fila e tratamos no loop.)
+volatile char filaRx[64];
+volatile uint8_t rxIni = 0, rxFim = 0;
+
+void receberCaractere(char c) {
+  uint8_t prox = (rxFim + 1) % sizeof(filaRx);
+  if (prox != rxIni) {
+    filaRx[rxFim] = c;
+    rxFim = prox;
+  }
+}
+
+void tratarCaractere(char c) {
+  if (c == '\r') return;
+  if (c == '\n') {
+    linha[tamLinha] = '\0';
+    executarComando(linha);
+    tamLinha = 0;
+  } else if (tamLinha < sizeof(linha) - 1) {
+    linha[tamLinha++] = c;
   }
 }
 
 void lerSerial() {
-  while (Serial.available()) {
-    char c = Serial.read();
-    if (c == '\r') continue;
-    if (c == '\n') {
-      linha[tamLinha] = '\0';
-      executarComando(linha);
-      tamLinha = 0;
-    } else if (tamLinha < sizeof(linha) - 1) {
-      linha[tamLinha++] = c;
-    }
+  while (Serial.available()) tratarCaractere(Serial.read());
+  while (rxIni != rxFim) {
+    char c = filaRx[rxIni];
+    rxIni = (rxIni + 1) % sizeof(filaRx);
+    tratarCaractere(c);
   }
 }
 
@@ -210,6 +315,7 @@ void setup() {
     delay(100);
   }
   delay(100);
+  iniciarBle();
   enviarHello();
 }
 

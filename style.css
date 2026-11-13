@@ -36,6 +36,7 @@ body {
   padding: 8px 16px; border-radius: 10px; border: 0; cursor: pointer;
   background: var(--accent); color: #2b2000;
 }
+.btn-alt { background: #4de1ff; color: #001a22; }
 .btn:hover { filter: brightness(1.08); }
 .btn[hidden] { display: none; }
 .link { font: inherit; font-size: 14px; background: none; border: 0; color: var(--muted); cursor: pointer; text-decoration: underline; }

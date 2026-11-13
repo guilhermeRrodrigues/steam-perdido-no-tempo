@@ -77,6 +77,14 @@ Todos usam a mão (distância = opção, mão parada ≈ 1,3 s = confirma, toqui
 - `js/protocol.js` é "puro" (não usa o navegador): parser, comandos, detector de toquinho e zonas da mão. Por isso é testado no Node.
 - O atraso das fases difíceis é aplicado **na placa** (comando `DELAY`), como um aparelho lento de verdade. No teclado, o atraso é simulado no navegador.
 
+### Bluetooth (BLE) como segundo caminho
+
+Computadores da escola podem não ter o driver do chip USB (CP2102/CH340) e não deixar instalar. Por isso o firmware também é um periférico **BLE** chamado `PerdidoNoTempo`, com um serviço no estilo **Nordic UART** (`6E400001-…`; RX `…0002` para comandos, TX `…0003` com notificações). As mensagens e comandos são **os mesmos** do cabo; as linhas vão em pedaços de 20 bytes e o `LineSplitter` remonta. O jogo usa **Web Bluetooth** (Chrome/Edge): o primeiro uso pede um clique em "Conectar por Bluetooth"; quedas são reconectadas sozinhas (até 6 tentativas com espera crescente); e, onde o navegador oferece `navigator.bluetooth.getDevices()`, reconecta até depois de recarregar a página. O BLE exige a partição **Huge APP** (o programa fica maior que 1,2 MB).
+
+### Gravação sem instalar nada
+
+O GitHub Actions compila o firmware com `arduino-cli` (core ESP32 3.0.7) e salva um `.bin` único (offset `0x0`) em `gravar/`. A página `/gravar` usa o **ESP Web Tools** (copiado em `vendor/`, sem CDN) para gravar pelo navegador via Web Serial, inclusive no Chrome do Android com OTG (via WebUSB, sem driver).
+
 ### Por que Web Serial?
 
 | Opção | Por que não / por que sim |
@@ -85,7 +93,8 @@ Todos usam a mão (distância = opção, mão parada ≈ 1,3 s = confirma, toqui
 | ESP32 como teclado USB (HID) | O ESP32 clássico (DevKit V1) **não** tem USB nativo; só o S2/S3. E teclado não recebe comandos de volta (atraso, LED). |
 | Bluetooth / Wi-Fi (WebSocket) | Exige servidor local ou pareamento, e a Vercel não hospeda servidor WebSocket persistente. Mais pontos de falha para iniciante. |
 | App Python/Node no PC fazendo ponte | Precisa instalar e rodar outro programa antes de jogar. |
-| WebUSB | Não funciona com os chips CP210x/CH340 (eles já têm driver serial do sistema). |
+| WebUSB | No Windows não acessa CP210x/CH340 sem instalar driver (WinUSB). No Android funciona, e é o que a página de gravação usa lá. |
+| **Bluetooth LE (também usado)** | Sem driver e sem pareamento. Usado como segundo caminho para jogar quando o PC não tem o driver USB. |
 
 **Limitações aceitas:** só Chrome/Edge no computador (o jogo avisa e libera o teclado) e a primeira conexão exige um clique de permissão (regra de segurança do navegador).
 
@@ -112,7 +121,9 @@ Texto, uma mensagem por linha (`\n`), **115200 baud**.
 | `OK:SONAR:1`, `OK:DELAY:300`, `OK:RESET` | confirmações |
 | `ERR:<comando>` | comando desconhecido |
 
-**PC → Placa**
+Pelo **Bluetooth**, as mesmas linhas chegam como notificações da característica TX, em pedaços de até 20 bytes.
+
+**PC → Placa** (pelo cabo ou escrevendo na característica RX do Bluetooth)
 
 | Comando | Efeito |
 |---------|--------|
@@ -164,4 +175,6 @@ Texto, uma mensagem por linha (`\n`), **115200 baud**.
 - `npm test`: 10 testes do protocolo e dos gestos passando.
 - `npm run test:firmware`: o firmware real compilado com um Arduino simulado responde certo a `PING`, `DELAY`, `SONAR`, `RESET`, comando inválido, botão BOOT e distâncias (com `DELAY:500`, a distância chega 501 ms depois).
 - Teste no Chromium com uma porta serial falsa: autoconexão por `getPorts`, `HELLO` depois do lixo de boot, navegação com a mão, envio de `SONAR`/`DELAY`/`LED`, desconexão e reconexão automática pelo evento `connect`, o QR code vencido seguindo o foco, e o jogo no teclado sem Web Serial (aviso visível).
-- Ainda **não** testado: compilação na Arduino IDE com o core oficial do ESP32 e o sensor físico. O código usa só funções padrão (`pulseIn`, `digitalWrite`, `Serial`), sem bibliotecas extras.
+- Bluetooth testado no Chromium com um aparelho BLE falso: conectar, receber linhas em pedaços de 20 bytes, enviar comandos e reconectar sozinho após uma queda.
+- A compilação real com o core oficial do ESP32 roda no GitHub Actions a cada mudança no firmware.
+- Ainda **não** testado: o sensor e o Bluetooth com a placa física.

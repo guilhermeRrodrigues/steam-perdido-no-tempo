@@ -21,6 +21,14 @@ test('ignora lixo do boot do ESP32', () => {
   assert.ok(parsed.slice(0, -1).every((p) => p.type === 'unknown'));
 });
 
+test('Bluetooth: linha dividida em pedaços de 20 bytes é remontada', () => {
+  const s = new LineSplitter();
+  const msg = 'HELLO:PERDIDO:2:ESP32\nDIST:17\n';
+  const out = [];
+  for (let i = 0; i < msg.length; i += 20) out.push(...s.push(msg.slice(i, i + 20)));
+  assert.deepEqual(out, ['HELLO:PERDIDO:2:ESP32', 'DIST:17']);
+});
+
 test('interpreta mensagens da placa', () => {
   assert.deepEqual(parseLine('DIST:23'), { type: 'dist', cm: 23 });
   assert.deepEqual(parseLine('DIST:-1'), { type: 'dist', cm: null });

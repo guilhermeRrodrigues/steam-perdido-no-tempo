@@ -24,6 +24,15 @@ export const USB_FILTERS = [
   { usbVendorId: 0x0403 }, // FTDI
 ];
 
+// Bluetooth LE: serviço no estilo "Nordic UART". As mensagens são as mesmas do cabo.
+// A placa manda as linhas em pedaços de até 20 bytes (notificações); o LineSplitter junta.
+export const BLE = {
+  NAME: 'PerdidoNoTempo',
+  SERVICE: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  RX: '6e400002-b5a3-f393-e0a9-e50e24dcca9e', // o jogo escreve comandos aqui
+  TX: '6e400003-b5a3-f393-e0a9-e50e24dcca9e', // a placa notifica mensagens aqui
+};
+
 /** Quebra o fluxo de texto em linhas completas. Guarda o pedaço incompleto para o próximo pedaço. */
 export class LineSplitter {
   constructor(maxLen = 200) {

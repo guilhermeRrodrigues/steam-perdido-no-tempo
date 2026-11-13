@@ -1,0 +1,12 @@
+{
+  "name": "Perdido no tempo — controle (ESP32 + HC-SR04)",
+  "version": "2",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [{ "path": "perdido_controle.bin", "offset": 0 }]
+    }
+  ]
+}

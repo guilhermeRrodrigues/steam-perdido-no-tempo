@@ -1,0 +1,77 @@
+# Compila o firmware do ESP32 na nuvem do GitHub (ninguém precisa instalar a Arduino IDE).
+# Gera um arquivo .bin único (já com bootloader e partições, gravado no endereço 0x0)
+# e salva em gravar/perdido_controle.bin, que a página /gravar do site usa para gravar pelo navegador.
+name: Compilar firmware
+
+on:
+  push:
+    branches: [main]
+    paths: ['firmware/**', '.github/workflows/firmware.yml']
+  pull_request:
+    paths: ['firmware/**', '.github/workflows/firmware.yml', 'gravar/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ESP32_CORE: "3.0.7"
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Instalar o suporte ao ESP32
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install "esp32:esp32@${ESP32_CORE}"
+
+      - name: Compilar (ESP32 Dev Module, partição Huge APP por causa do Bluetooth)
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32:PartitionScheme=huge_app \
+            --warnings default \
+            --output-dir build \
+            firmware/perdido_controle
+          ls -la build
+
+      - name: Montar o .bin único (offset 0x0)
+        run: |
+          if [ -f build/perdido_controle.ino.merged.bin ]; then
+            cp build/perdido_controle.ino.merged.bin gravar/perdido_controle.bin
+          else
+            pip install --quiet esptool
+            BOOT_APP0=$(find ~/.arduino15/packages/esp32/hardware/esp32 -name boot_app0.bin | head -1)
+            python -m esptool --chip esp32 merge_bin -o gravar/perdido_controle.bin \
+              --flash_mode dio --flash_freq 80m --flash_size 4MB \
+              0x1000 build/perdido_controle.ino.bootloader.bin \
+              0x8000 build/perdido_controle.ino.partitions.bin \
+              0xe000 "$BOOT_APP0" \
+              0x10000 build/perdido_controle.ino.bin
+          fi
+          ls -la gravar/
+
+      - name: Guardar o .bin para download (aba Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: perdido_controle-firmware
+          path: gravar/perdido_controle.bin
+
+      - name: Salvar o .bin no repositório (o site da Vercel atualiza sozinho)
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gravar/perdido_controle.bin
+          if git diff --cached --quiet; then
+            echo "O .bin não mudou."
+          else
+            git commit -m "Firmware compilado automaticamente (${GITHUB_SHA::7})"
+            git push
+          fi

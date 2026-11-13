@@ -8,6 +8,8 @@ Neste jogo, o controle é a **sua mão**. O sensor ultrassônico mede a que dist
 - **Deixe a mão parada por cerca de 1 segundo** para confirmar.
 - **Aproxime a mão bem rápido do sensor e tire** (um "toquinho no ar") para **voltar / fechar**.
 
+O ESP32 conversa com o jogo **pelo cabo USB** ou **por Bluetooth** (útil quando o computador não tem o driver USB da placa).
+
 Isso é de propósito: controlar com a mão no ar é meio difícil e impreciso, como o Seu Antônio se sente com as telas da cidade.
 
 ---
@@ -165,37 +167,54 @@ A mini protoboard tem **17 colunas**, cada uma com 5 furos ligados entre si (de 
 
 ## 5. Gravando o firmware
 
-### 5.1 Preparar a Arduino IDE (só uma vez)
+Escolha **um** caminho. O primeiro não instala nada.
 
-1. Abra a Arduino IDE → **Arquivo → Preferências**.
-2. Em "URLs adicionais do Gerenciador de Placas", cole:
-   `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
-3. **Ferramentas → Placa → Gerenciador de Placas**, procure **esp32** (da Espressif) e clique em **Instalar**.
-4. Escolha: **Ferramentas → Placa → esp32 → ESP32 Dev Module**.
+### 5.1 Pelo navegador, sem instalar nada (recomendado)
 
-Não precisa instalar nenhuma biblioteca.
+1. Abra a página **Gravar firmware** do site do jogo (link no topo do jogo, ou `seu-site.vercel.app/gravar`) no **Chrome** ou **Edge**.
+2. Ligue o ESP32 no USB, clique em **⚡ Gravar firmware no ESP32**, escolha a porta e clique em **Instalar**.
+3. Se travar em "Conectando", **segure o botão BOOT** da placa por 2 segundos.
+4. No fim, clique em **Logs & Console** e mexa a mão: devem aparecer linhas `DIST:...`.
 
-### 5.2 Driver USB (se a porta não aparecer)
+O arquivo gravado (`.bin`) é compilado sozinho pelo GitHub (aba **Actions** do repositório) sempre que o código do firmware muda. Ninguém precisa compilar no computador.
 
-Olhe o chip ao lado do conector USB da placa:
-- **CP2102 / CP2104** → instale o driver "CP210x" da Silicon Labs.
-- **CH340 / CH9102** → instale o driver "CH340/CH341" da WCH.
+### 5.2 A porta não aparece? É o driver USB
 
-No Windows 10/11 geralmente instala sozinho. Depois, tire e coloque o cabo de novo.
+No Windows, abra o **Gerenciador de Dispositivos**. Se aparecer **"CP2102 USB to UART Bridge Controller" com um triângulo amarelo** em "Outros dispositivos", falta o driver do chip USB da placa:
 
-### 5.3 Enviar o código
+- **CP2102 / CP2104** → driver "CP210x" da Silicon Labs.
+- **CH340 / CH9102** → driver "CH340/CH341" da WCH.
 
-1. Abra `firmware/perdido_controle/perdido_controle.ino` na Arduino IDE.
-2. **Ferramentas → Porta**: escolha a porta da placa (Windows: `COM3`, `COM4`...; Linux: `/dev/ttyUSB0`; Mac: `/dev/cu.usbserial-...`).
-3. Clique na seta **→ (Carregar)**.
-4. Se aparecer `Connecting........_____`, **segure o botão BOOT** da placa até começar a gravar, e solte.
-5. Espere "Hard resetting via RTS pin...". O LED azul pisca 2 vezes: está funcionando.
+Instalar driver pede **senha de administrador**. No computador da escola, sem senha, faça assim:
+
+1. **Grave a placa uma vez em outro aparelho**:
+   - **Celular Android** com Chrome e um adaptador **OTG**: abra a página Gravar firmware no celular, ligue a placa no adaptador e grave. O Android não precisa de driver.
+   - Ou um computador em casa (o Windows costuma instalar o driver sozinho em 1 ou 2 minutos).
+   - Ou peça ao técnico de TI para instalar o driver uma vez.
+2. **Jogue por Bluetooth** no computador da escola (seção 6.3). O cabo USB só dá energia, então o driver não faz falta.
+
+### 5.3 Alternativa: Arduino IDE portátil (sem instalar)
+
+No Windows, a Arduino IDE tem a versão **"Windows ZIP file"** em https://www.arduino.cc/en/software. É só descompactar numa pasta sua (ou num pendrive) e abrir `Arduino IDE.exe`, sem instalador.
+
+1. **Arquivo → Preferências → URLs adicionais**: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
+2. **Gerenciador de Placas** → instale **esp32** (Espressif).
+3. **Ferramentas → Placa → ESP32 Dev Module** e **Ferramentas → Partition Scheme → Huge APP (3MB No OTA/1MB SPIFFS)** (o Bluetooth precisa de espaço).
+4. Abra `firmware/perdido_controle/perdido_controle.ino`, escolha a porta e clique em **Carregar**.
+
+Atenção: a IDE portátil **não resolve o driver**. Sem driver, a porta não aparece aqui também. A rede da escola também pode bloquear o download do pacote esp32.
+
+### 5.4 Alternativa: Arduino Cloud Editor
+
+O editor online (https://app.arduino.cc) compila na nuvem, mas para gravar ele pede o programa **Arduino Cloud Agent** instalado no computador, e também depende do driver. No computador da escola, esse caminho costuma esbarrar na mesma senha.
 
 ---
 
 ## 6. Testando
 
 ### 6.1 Monitor Serial (sem o jogo)
+
+Sem Arduino IDE? Use o botão **Logs & Console** da página Gravar firmware: ele mostra as mesmas linhas.
 
 1. **Ferramentas → Monitor Serial**, velocidade **115200 baud**, fim de linha **Nova linha (Newline)**.
 2. Aperte o botão **EN/RST** da placa. Deve aparecer `HELLO:PERDIDO:2:ESP32`.
@@ -221,20 +240,32 @@ No Windows 10/11 geralmente instala sozinho. Depois, tire e coloque o cabo de no
 3. Nas próximas vezes, é só ligar o cabo USB: o jogo conecta sozinho.
 4. No menu, entre em **"Testar controle"**: aparece uma régua mostrando onde sua mão está e as faixas de cada opção.
 
+### 6.3 Com o jogo, por Bluetooth (sem driver)
+
+O firmware anuncia um aparelho Bluetooth chamado **PerdidoNoTempo**. Não precisa parear no Windows.
+
+1. Ligue a placa no USB do computador (só para dar energia; serve também um carregador de celular ou power bank).
+2. Confira se o **Bluetooth do computador está ligado**.
+3. No jogo (Chrome ou Edge), clique em **📶 Conectar por Bluetooth**, escolha **PerdidoNoTempo** e clique em **Parear/Conectar**.
+4. Se a conexão cair, o jogo tenta reconectar sozinho. Se recarregar a página, pode ser preciso clicar de novo (depende da versão do navegador).
+
+O Bluetooth tem um pouquinho mais de atraso que o cabo. Para este jogo, isso não atrapalha (e até combina com a ideia de "aparelho lento").
+
 ---
 
 ## 7. Solução de problemas
 
 | Problema | O que fazer |
 |----------|-------------|
-| A porta não aparece | Troque o cabo (muitos são só de carga). Instale o driver CP210x ou CH340 (5.2). Teste outra porta USB. |
+| A porta não aparece | Troque o cabo (muitos são só de carga). Veja se falta o driver (5.2). Sem driver: grave pelo celular ou outro PC e jogue por **Bluetooth** (6.3). |
+| "PerdidoNoTempo" não aparece no Bluetooth | Ligue o Bluetooth do computador. Confira se a placa está ligada e foi gravada com o firmware novo (com Bluetooth). Feche outras abas conectadas a ela. |
 | Upload trava em `Connecting....` | Segure **BOOT** no começo da gravação. |
 | Só aparece `DIST:-1` | Confira VCC no **VIN** (5 V) e GND. Confira Trig no D5 e o divisor indo para o D18. Se ligou VCC no 3V3, seu sensor pode não aceitar: use 5 V com o divisor. |
 | A distância pula muito | Use a palma aberta e reta. Tire objetos da frente do sensor. Não deixe o sensor apontado para uma parede próxima. |
 | A distância fica parada num número | O divisor pode estar invertido: o **1 kΩ** fica do lado do Echo e o **2 kΩ** do lado do GND. |
 | Letras estranhas no Monitor Serial | Velocidade errada: use **115200**. Um pouco de "lixo" ao ligar é normal no ESP32. |
 | O jogo diz "porta ocupada" | Feche o Monitor Serial da Arduino IDE ou a outra aba do jogo. |
-| O jogo diz "navegador não suportado" | A Web Serial só funciona no **Chrome** ou **Edge** no computador. Use o teclado como alternativa. |
+| O jogo diz "navegador não suportado" | USB e Bluetooth só funcionam no **Chrome** ou **Edge** no computador. Use o teclado como alternativa. |
 | O LED azul não pisca | Algumas placas não têm LED no GPIO 2. Não faz mal: o som do computador continua funcionando. |
 | A placa reinicia quando o jogo conecta | Normal: o ESP32 reinicia ao abrir a porta e manda `HELLO`. O jogo espera isso. |
 

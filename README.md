@@ -2,13 +2,16 @@
 
 Jogo STEAM (SESI) sobre o **Seu Antônio**, um aposentado de 72 anos que ganha R$ 1.400 e chega a Nova Aurora, uma cidade hipertecnológica. Cada escolha mexe no **saldo** e na **paciência** dele e leva a minigames: totem de autoatendimento, Pix (com golpe no meio), QR code e assistente de voz. Os finais misturam crítica e esperança.
 
-O controle é a **mão do jogador** na frente de um **sensor ultrassônico HC-SR04** ligado a um **ESP32**. O jogo roda no navegador e conversa com a placa pelo cabo USB (Web Serial). Sem placa, dá para jogar no teclado.
+O controle é a **mão do jogador** na frente de um **sensor ultrassônico HC-SR04** ligado a um **ESP32**. O jogo roda no navegador e conversa com a placa pelo **cabo USB** (Web Serial) ou por **Bluetooth** (Web Bluetooth, sem precisar de driver). Sem placa, dá para jogar no teclado.
 
 | Arquivo | O que é |
 |---------|---------|
 | [MANUAL_MONTAGEM.md](MANUAL_MONTAGEM.md) | Como montar e gravar o controle, passo a passo |
 | [plan.md](plan.md) | Plano do projeto: roteiro, minigames, arquitetura, protocolo, fases |
-| `firmware/perdido_controle/` | Código do ESP32 (Arduino IDE) |
+| `firmware/perdido_controle/` | Código do ESP32 (Arduino) |
+| `gravar.html`, `gravar/` | Página que grava o firmware pelo navegador (ESP Web Tools) e o `.bin` compilado |
+| `.github/workflows/firmware.yml` | Compila o firmware no GitHub e salva o `.bin` em `gravar/` |
+| `vendor/esp-web-tools/` | Cópia do ESP Web Tools 10.5.2 (Apache-2.0), para não depender de CDN |
 | `index.html`, `style.css`, `js/` | O jogo (site estático, sem build) |
 | `tools/` | Testes do protocolo e simulação do firmware |
 
@@ -31,11 +34,27 @@ python -m http.server 5173
 
 Abra `http://localhost:5173` (ou o endereço que aparecer) no **Chrome** ou **Edge**. `localhost` conta como site seguro, então a Web Serial funciona.
 
+## Gravar o firmware sem instalar nada
+
+1. O GitHub compila o firmware sozinho (aba **Actions** → "Compilar firmware") sempre que algo em `firmware/` muda na `main`, e salva o resultado em `gravar/perdido_controle.bin`. Para rodar na mão: **Actions → Compilar firmware → Run workflow**.
+2. A Vercel publica de novo com o `.bin` novo.
+3. Abra `https://SEU-SITE.vercel.app/gravar` no Chrome/Edge (ou no Chrome de um celular Android com cabo OTG), clique em **Gravar firmware no ESP32** e escolha a porta.
+
+**O computador não mostra a porta (driver CP2102/CH340 faltando e sem senha de administrador)?** Grave a placa uma vez pelo celular Android ou em outro computador, e jogue por Bluetooth. Detalhes na seção 5 do [manual](MANUAL_MONTAGEM.md).
+
+Alternativas: Arduino IDE em versão ZIP (portátil) e Arduino Cloud Editor, também explicadas no manual. Na Arduino IDE, use **Partition Scheme → Huge APP**, por causa do Bluetooth.
+
 ## Conectar o controle
 
-1. Grave o firmware (veja o manual) e **feche o Monitor Serial** da Arduino IDE.
+**Pelo cabo USB** (precisa do driver do chip USB):
+1. **Feche o Monitor Serial** da Arduino IDE, se estiver aberto.
 2. No jogo, clique em **🔌 Conectar controle** e escolha a porta (CP210x, CH340...). Se a placa não aparecer, clique em **"não apareceu?"** para ver todas as portas.
-3. Pronto. Da próxima vez, é só ligar o cabo: o jogo conecta sozinho, e se o cabo sair e voltar, ele reconecta.
+3. Da próxima vez, é só ligar o cabo: o jogo conecta sozinho, e se o cabo sair e voltar, ele reconecta.
+
+**Por Bluetooth** (não precisa de driver nem de parear no Windows):
+1. Ligue a placa (no USB só para energia, ou num carregador).
+2. Clique em **📶 Conectar por Bluetooth** e escolha **PerdidoNoTempo**.
+3. Se cair, o jogo tenta reconectar sozinho.
 
 ## Publicar na Vercel
 
@@ -54,7 +73,7 @@ vercel          # primeira vez: responde as perguntas (tudo padrão)
 vercel --prod   # publica
 ```
 
-O `vercel.json` já libera a Web Serial (`Permissions-Policy: serial=(self)`). A Vercel usa HTTPS, que a Web Serial exige. O `.vercelignore` deixa o firmware e os testes fora do site.
+O `vercel.json` já libera a Web Serial e o Web Bluetooth (`Permissions-Policy`). A Vercel usa HTTPS, que a Web Serial exige. O `.vercelignore` deixa o firmware e os testes fora do site.
 
 ## Testes
 
@@ -65,7 +84,8 @@ npm run test:firmware    # compila o firmware com um Arduino simulado (precisa d
 
 ## Navegadores
 
-| Navegador | Controle USB | Teclado |
-|-----------|:-----------:|:-------:|
-| Chrome / Edge (computador) | ✅ | ✅ |
-| Firefox, Safari, celular | ❌ (aparece um aviso) | ✅ |
+| Navegador | Controle USB | Bluetooth | Gravar firmware | Teclado |
+|-----------|:-----------:|:---------:|:---------------:|:-------:|
+| Chrome / Edge (computador) | ✅ | ✅ | ✅ | ✅ |
+| Chrome (Android) | ❌ | ✅ | ✅ (cabo OTG) | ❌ |
+| Firefox, Safari | ❌ (aparece um aviso) | ❌ | ❌ | ✅ |

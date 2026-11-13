@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gravar firmware</title>
+  <meta name="description" content="Grave o firmware do controle (ESP32 + HC-SR04) direto pelo Chrome ou Edge, sem instalar nada.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .page { max-width: 820px; margin: 0 auto; padding: 20px 16px 40px; line-height: 1.55; }
+    .page h1 { color: var(--accent); margin: 8px 0 4px; }
+    .page h2 { margin-top: 28px; font-size: 20px; }
+    .card { background: var(--panel); border: 1px solid #ffffff1a; border-radius: 14px; padding: 18px 20px; margin: 16px 0; }
+    .page ol li, .page ul li { margin: 6px 0; }
+    .page a { color: #4de1ff; }
+    code { background: #ffffff14; padding: 1px 6px; border-radius: 6px; }
+    .big { font-size: 18px; padding: 14px 22px; }
+    #fw-status { margin-top: 10px; font-size: 15px; }
+    .ok { color: var(--good); } .no { color: var(--bad); }
+  </style>
+  <script type="module" src="vendor/esp-web-tools/install-button.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" style="text-decoration:none">← Perdido no tempo</a>
+    <div class="conn"><span class="pill pill-off">Gravar firmware</span></div>
+  </header>
+
+  <div class="page">
+    <h1>Gravar o firmware no ESP32</h1>
+    <p>Grava o programa do controle direto pelo navegador. <b>Não precisa instalar a Arduino IDE nem nenhum programa.</b> Funciona no <b>Chrome</b> ou no <b>Edge</b> do computador, e também no <b>Chrome de um celular Android</b> com cabo OTG.</p>
+
+    <div class="card">
+      <ol>
+        <li>Feche o jogo em outras abas e a Arduino IDE, se estiverem abertos (só um programa usa a porta por vez).</li>
+        <li>Ligue o ESP32 no computador com um cabo USB <b>de dados</b>.</li>
+        <li>Clique no botão abaixo, escolha a porta (algo como <code>CP2102</code>, <code>USB-SERIAL CH340</code> ou <code>COM3</code>) e clique em <b>Conectar</b> e depois em <b>Instalar</b>.</li>
+        <li>Se travar em "Conectando", <b>segure o botão BOOT</b> da placa por 2 segundos e solte.</li>
+        <li>Quando terminar, clique em <b>Logs &amp; Console</b>: ao mexer a mão na frente do sensor, devem aparecer linhas <code>DIST:23</code>. Depois feche a janela e <a href="./">vá para o jogo</a>.</li>
+      </ol>
+      <esp-web-install-button manifest="gravar/manifest.json">
+        <button slot="activate" class="btn big">⚡ Gravar firmware no ESP32</button>
+        <span slot="unsupported" class="unsupported">⚠ Este navegador não grava pela USB. Abra esta página no <b>Google Chrome</b> ou no <b>Microsoft Edge</b>, no computador.</span>
+        <span slot="not-allowed" class="unsupported">⚠ A página precisa estar em HTTPS (o link da Vercel) ou em <code>localhost</code>.</span>
+      </esp-web-install-button>
+      <div id="fw-status">Verificando o arquivo do firmware...</div>
+    </div>
+
+    <h2>A porta não aparece na lista?</h2>
+    <p>Então o computador está sem o <b>driver</b> do chip USB da placa. No Windows, o Gerenciador de Dispositivos mostra algo como <code>CP2102 USB to UART Bridge Controller</code> com um <b>triângulo amarelo</b>. O driver é:</p>
+    <ul>
+      <li><b>CP2102 / CP2104</b>: "CP210x" da Silicon Labs.</li>
+      <li><b>CH340 / CH9102</b>: "CH340/CH341" da WCH.</li>
+    </ul>
+    <p>Instalar driver pede senha de administrador. Se o computador da escola não deixa, use um destes caminhos (nenhum instala nada nele):</p>
+    <ol>
+      <li><b>Grave a placa em outro aparelho</b>, só uma vez:
+        <ul>
+          <li>um <b>celular Android</b> com Chrome e um adaptador <b>OTG</b> (USB-C ou micro-USB para USB): abra esta mesma página no celular, ligue a placa e grave;</li>
+          <li>ou um computador em casa (o Windows costuma instalar o driver sozinho);</li>
+          <li>ou peça ao técnico de TI para instalar o driver uma vez.</li>
+        </ul>
+      </li>
+      <li><b>Depois, jogue por Bluetooth</b> no computador da escola. O firmware já vem com Bluetooth: ligue a placa no USB só para dar energia (ou numa bateria/carregador de celular), abra o jogo e clique em <b>📶 Conectar por Bluetooth</b>. Bluetooth não precisa de driver.</li>
+    </ol>
+    <p>Teste também outro cabo: muitos cabos são <b>só de carga</b> e não transmitem dados.</p>
+
+    <h2>Plano B: gravar o arquivo .bin manualmente</h2>
+    <ol>
+      <li>Baixe o arquivo: <a href="gravar/perdido_controle.bin" download>perdido_controle.bin</a>.</li>
+      <li>Abra o <a href="https://espressif.github.io/esptool-js/" target="_blank" rel="noopener">ESP Tool da Espressif</a> (também roda no navegador).</li>
+      <li>Clique em <b>Connect</b>, escolha a porta, coloque o endereço <code>0x0</code>, escolha o arquivo e clique em <b>Program</b>.</li>
+    </ol>
+  </div>
+
+  <script>
+    // Mostra se o firmware já foi compilado pelo GitHub Actions
+    fetch('gravar/perdido_controle.bin', { method: 'HEAD', cache: 'no-store' })
+      .then((r) => {
+        const el = document.getElementById('fw-status');
+        const kb = r.headers.get('content-length');
+        if (r.ok) {
+          el.innerHTML = '<span class="ok">✓ Firmware pronto para gravar' + (kb ? ' (' + Math.round(kb / 1024) + ' KB)' : '') + '.</span>';
+        } else {
+          el.innerHTML = '<span class="no">✗ O firmware ainda não foi compilado. No GitHub, abra a aba <b>Actions</b> → "Compilar firmware" → <b>Run workflow</b>, espere terminar e recarregue esta página.</span>';
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

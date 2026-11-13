@@ -14,12 +14,14 @@
       <span id="status" class="pill pill-off">Controle: desconectado</span>
       <button id="btn-connect" class="btn">🔌 Conectar controle</button>
       <button id="btn-connect-all" class="link" title="Use se a sua placa não aparecer na lista">não apareceu?</button>
+      <button id="btn-ble" class="btn btn-alt" title="Sem fio: não precisa de driver USB">📶 Conectar por Bluetooth</button>
       <button id="btn-sound" class="link" title="Ligar/desligar o som">🔊</button>
+      <a class="link" href="gravar.html" title="Gravar o programa no ESP32 pelo navegador">gravar firmware</a>
     </div>
   </header>
 
   <div id="warn" class="warn" hidden>
-    ⚠ Este navegador não tem <b>Web Serial</b>, então o controle USB não funciona aqui.
+    ⚠ Este navegador não conversa com o controle (nem por USB nem por Bluetooth).
     Abra no <b>Google Chrome</b> ou no <b>Microsoft Edge</b> no computador. Por enquanto, jogue no teclado.
   </div>
   <div id="hint" class="hint" hidden></div>
