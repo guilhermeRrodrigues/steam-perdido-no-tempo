@@ -58,22 +58,35 @@ Alternativas: Arduino IDE em versão ZIP (portátil) e Arduino Cloud Editor, tam
 
 ## Publicar na Vercel
 
-O projeto é um site estático: não tem build nem servidor.
+O projeto é um site estático: não tem build nem servidor. O `vercel.json` na **raiz** do repositório já diz isso para a Vercel (sem framework, sem instalação, sem build, publicar a própria raiz), então não é preciso mudar nada na tela de importação.
 
-**Pelo site (mais fácil):**
-1. Suba esta pasta para um repositório no GitHub.
-2. Entre em https://vercel.com, clique em **Add New → Project** e importe o repositório.
-3. Em *Framework Preset* escolha **Other**. Deixe *Build Command* e *Output Directory* vazios.
-4. Clique em **Deploy**. O link fica algo como `https://perdido-no-tempo.vercel.app`.
+**Pelo site:**
+1. Em https://vercel.com, clique em **Add New… → Project** e, em *Import Git Repository*, escolha **steam-perdido-no-tempo** → **Import**.
+2. Na tela *Configure Project*, deixe assim:
 
-**Pelo terminal:**
+   | Campo | O que escolher |
+   |-------|----------------|
+   | Project Name | `perdido-no-tempo` (ou o nome que quiser; vira o link) |
+   | Framework Preset | **Other** |
+   | Root Directory | **`./`** (a raiz; não escolha nenhuma pasta) |
+   | Build and Output Settings | **não mexa**: o `vercel.json` já desliga o build e a instalação |
+   | Environment Variables | nenhuma |
+
+   A Vercel não mostra um aviso de "vercel.json detectado" nessa tela: ela só lê o arquivo na hora do deploy.
+3. Clique em **Deploy**. O link fica algo como `https://perdido-no-tempo.vercel.app`, e a página de gravação em `https://perdido-no-tempo.vercel.app/gravar`.
+4. Cada push na `main` publica de novo sozinho. Quando o firmware muda, o GitHub Actions salva o `.bin` novo em `gravar/` e a Vercel publica outra vez.
+
+**Conferir se deu certo:** abra o link, aperte F12 → *Network*, recarregue e clique em `index.html` (ou no primeiro item): em *Response Headers* deve aparecer `permissions-policy: serial=(self), bluetooth=(self), usb=(self)`. Isso mostra que o `vercel.json` foi usado.
+
+**Se o deploy já existia com outras configurações:** em *Project → Settings → Build and Deployment*, deixe Framework Preset em **Other**, desligue os *Override* de Build/Output/Install, confira o *Root Directory* vazio e faça **Redeploy**.
+
+**Pelo terminal (opcional):**
 ```bash
-npm i -g vercel
-vercel          # primeira vez: responde as perguntas (tudo padrão)
-vercel --prod   # publica
+npx vercel          # primeira vez: responde as perguntas (tudo padrão)
+npx vercel --prod   # publica
 ```
 
-O `vercel.json` já libera a Web Serial e o Web Bluetooth (`Permissions-Policy`). A Vercel usa HTTPS, que a Web Serial exige. O `.vercelignore` deixa o firmware e os testes fora do site.
+O `.vercelignore` deixa o firmware, os testes e os `.md` fora do site.
 
 ## Testes
 
