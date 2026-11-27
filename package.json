@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "npx --yes serve -l 5173 .",
-    "test": "node tools/test-protocol.mjs",
+    "test": "node tools/test-protocol.mjs && node tools/test-minigames.mjs",
     "test:firmware": "bash tools/test-firmware.sh"
   }
 }

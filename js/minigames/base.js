@@ -30,6 +30,12 @@ export class Minigame {
     else this.fx.error();
   }
 
+  /** Teclado: segurar ↑/↓ aproxima/afasta a mão "de mentira" (cm por segundo). */
+  keyboardHand(dt, speed = 14) {
+    if (this.input.held.UP) this.input.nudgeHand(-speed * dt);
+    if (this.input.held.DOWN) this.input.nudgeHand(speed * dt);
+  }
+
   get timeLeft() {
     return Math.max(0, this.timeLimit - this.time);
   }

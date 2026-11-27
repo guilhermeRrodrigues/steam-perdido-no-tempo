@@ -7,8 +7,11 @@ import { KioskGame } from './minigames/kiosk.js';
 import { PixGame } from './minigames/pix.js';
 import { QrGame } from './minigames/qr.js';
 import { VoiceGame } from './minigames/voice.js';
+import { BagsGame } from './minigames/bags.js';
+import { PumpGame } from './minigames/pump.js';
+import { CrossGame } from './minigames/cross.js';
 
-const MINIGAMES = { kiosk: KioskGame, pix: PixGame, qr: QrGame, voice: VoiceGame };
+export const MINIGAMES = { kiosk: KioskGame, pix: PixGame, qr: QrGame, voice: VoiceGame, bags: BagsGame, pump: PumpGame, cross: CrossGame };
 
 export class Game {
   constructor(canvas, input, fx, controller) {
@@ -52,7 +55,8 @@ export class Game {
     const scene = SCENES[id];
     if (id === 'final' || !scene) return this.goEnding();
     this.sceneId = id;
-    this.setScreen('scene', { scene, menu: new HandMenu(this, scene.choices.map((c) => c.label)) });
+    const choices = scene.choices.filter((c) => !c.unlessFlag || !this.state.flags.has(c.unlessFlag));
+    this.setScreen('scene', { scene, choices, menu: new HandMenu(this, choices.map((c) => c.label)) });
   }
 
   goResult(message, delta, next) {
@@ -120,7 +124,7 @@ export class Game {
       }
       case 'scene': {
         const r = this.menu.update(dt, presses);
-        if (r && r.pick != null) this.choose(this.scene.choices[r.pick]);
+        if (r && r.pick != null) this.choose(this.choices[r.pick]);
         break;
       }
       case 'result': {

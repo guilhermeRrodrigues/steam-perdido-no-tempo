@@ -1,6 +1,6 @@
 # Perdido no tempo
 
-Jogo STEAM (SESI) sobre o **Seu Antônio**, um aposentado de 72 anos que ganha R$ 1.400 e chega a Nova Aurora, uma cidade hipertecnológica. Cada escolha mexe no **saldo** e na **paciência** dele e leva a minigames: totem de autoatendimento, Pix (com golpe no meio), QR code e assistente de voz. Os finais misturam crítica e esperança.
+Jogo STEAM (SESI) sobre o **Seu Antônio**, um aposentado de 72 anos que ganha R$ 1.400 e chega a Nova Aurora, uma cidade hipertecnológica. Cada escolha mexe no **saldo** e na **paciência** dele e leva a minigames: totem de autoatendimento, Pix (com golpe no meio), QR code e assistente de voz, além de desafios de movimento com a mão (pegar as malas na esteira, girar a manivela para carregar o celular e atravessar a avenida desviando de patinetes). Os finais misturam crítica e esperança.
 
 O controle é a **mão do jogador** na frente de um **sensor ultrassônico HC-SR04** ligado a um **ESP32**. O jogo roda no navegador e conversa com a placa pelo **cabo USB** (Web Serial) ou por **Bluetooth** (Web Bluetooth, sem precisar de driver). Sem placa, dá para jogar no teclado.
 
@@ -93,7 +93,7 @@ O `.vercelignore` deixa o firmware, os testes e os `.md` fora do site.
 ## Testes
 
 ```bash
-npm test                 # protocolo serial, zonas da mão, toquinho (Node 18+)
+npm test                 # protocolo serial, zonas da mão, toquinho e desafios (Node 18+)
 npm run test:firmware    # compila o firmware com um Arduino simulado (precisa de g++)
 ```
 

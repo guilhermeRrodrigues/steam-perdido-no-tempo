@@ -18,19 +18,30 @@ O controle reforça a mensagem: o jogador usa **a mão no ar diante de um sensor
 
 ```mermaid
 flowchart TD
-  I[Chegada a Nova Aurora] --> R[Rodoviária: bilhete de metrô]
+  I[Chegada a Nova Aurora] --> E[Desembarque: esteira de malas]
+  E -->|Pegar na esteira| MG5[[Desafio: Esteira]]
+  E -->|Esperar esvaziar: −10| R
+  MG5 --> R[Rodoviária: bilhete de metrô]
   R -->|Totem| MG1[[Minigame 1: Totem]]
   R -->|Atendente humano: −R$21, −12 paciência| F
   R -->|Pedir ajuda a um jovem: −R$6, +6 paciência| F
   MG1 --> F[Farmácia: remédio R$ 84,90, só Pix]
   F -->|App do banco| MG2[[Minigame 2: Pix + golpe]]
-  F -->|Cartão via cliente: −R$94,90, −15| P
-  F -->|Ligar para a Júlia: −18, sem remédio| P
-  MG2 --> P[Praça: cardápio só por QR code]
-  P -->|Ler o QR| MG3[[Minigame 3: QR code]]
-  P -->|Cardápio de papel: −R$28, +10| A
-  P -->|Salgado da máquina: −R$12, −10| A
-  MG3 --> A[Prédio da Júlia: assistente AURA]
+  F -->|Cartão via cliente: −R$94,90, −15| B
+  F -->|Ligar para a Júlia: −18, sem remédio| B
+  MG2 --> B[Poste de recarga: celular com 2%]
+  B -->|Girar a manivela| MG6[[Desafio: Manivela]]
+  B -->|Carga do ambulante: −R$15, −3| P
+  B -->|Seguir sem bateria: −6, sem QR code| P
+  MG6 --> P[Praça: cardápio só por QR code]
+  P -->|Ler o QR, se tiver bateria| MG3[[Minigame 3: QR code]]
+  P -->|Cardápio de papel: −R$28, +10| V
+  P -->|Salgado da máquina: −R$12, −10| V
+  MG3 --> V[Avenida do Futuro: sinal de 40 s]
+  V -->|Atravessar na faixa| MG7[[Desafio: Avenida]]
+  V -->|Passarela: −14| A
+  V -->|Atravessar com alguém: −4| A
+  MG7 --> A[Prédio da Júlia: assistente AURA]
   A -->|Falar com a AURA| MG4[[Minigame 4: Voz]]
   A -->|Esperar alguém abrir: −25| FIM
   MG4 --> FIM{Final}
@@ -58,6 +69,14 @@ Todos usam a mão (distância = opção, mão parada ≈ 1,3 s = confirma, toqui
 | 3 | **QR code** | A mão é o celular: manter a distância na faixa de foco, que fica mudando, até encher a barra (3 s) | Atraso de 200 ms, imagem borrada fora do foco, tremor | −R$ 32 (PF) | −R$ 12 e −15 |
 | 4 | **Voz (AURA)** | 3 rodadas: escolher a frase que a máquina entende ("Abrir portaria.", "Apartamento oitocentos e dois.", nome completo) | Atraso de 300 ms; as frases naturais do Antônio são entendidas tortas | +5 paciência (−6 por mal-entendido) | 4 mal-entendidos ou tempo: −20/−22 |
 
+**Desafios de movimento** (sem lista de opções: a mão age o tempo todo, sem atraso de controle, com tempo folgado):
+
+| # | Desafio | Como joga | Ganhar | Perder |
+|---|---------|-----------|--------|--------|
+| 5 | **Esteira de malas** (`bags.js`) | A distância escolhe o trilho (perto / meio / longe). Pegar as 3 coisas do Antônio quando chegam na linha amarela e tirar a mão do trilho das malas parecidas | +4 paciência (−2 por mala errada) | tempo (50 s): −12 |
+| 6 | **Manivela** (`pump.js`) | Levar a mão de PERTO (≤ 13 cm) até LONGE (≥ 25 cm) e voltar; cada meia volta dá +7% de bateria, até 100% | +4 paciência | tempo (45 s): −5, ou −10 e sem bateria (some a opção do QR code) se ficar abaixo de 30% |
+| 7 | **Atravessar a avenida** (`cross.js`) | A mão aponta para onde o Antônio anda (perto = calçada de cá, longe = de lá). Patinetes e robôs passam nas 2 pistas e a pista pisca 2,4 s antes: esperar na calçada ou no canteiro | +3 paciência (−3 por susto) | sinal fecha (40 s): −15 |
+
 ## 4. Arquitetura
 
 ```
@@ -67,7 +86,7 @@ Todos usam a mão (distância = opção, mão parada ≈ 1,3 s = confirma, toqui
  │ - mede distância         │                       │ js/input.js   mão + BOOT + teclado │
  │ - BOOT = OK              │                       │ js/handmenu.js zonas e régua       │
  │ - LED azul = feedback    │                       │ js/game.js    telas e história     │
- │ - fila de atraso         │                       │ js/minigames/ 4 minigames          │
+ │ - fila de atraso         │                       │ js/minigames/ 7 desafios           │
  └──────────────────────────┘                       │ Canvas 960×540 + Web Audio         │
                                                     └──────────────────────────────────┘
                                  hospedado como site estático na Vercel (HTTPS)
@@ -152,7 +171,7 @@ Pelo **Bluetooth**, as mesmas linhas chegam como notificações da característi
 | 2 | Protocolo + testes no Node (parser, zonas, toquinho, re-arme) | ✅ |
 | 3 | Conexão Web Serial com autodetecção e reconexão; aviso de navegador; teclado | ✅ |
 | 4 | História, saldo/paciência, 4 finais | ✅ |
-| 5 | 4 minigames com a mão | ✅ |
+| 5 | 7 desafios com a mão (4 de escolha + 3 de movimento) | ✅ |
 | 6 | Tela "Testar controle" com régua de distância | ✅ |
 | 7 | Deploy na Vercel | a fazer pelo aluno, com o README |
 | 8 | Playtest com colegas: ajustar `HAND.ZONE`, `HAND.DWELL`, tempos e atrasos | a fazer |
@@ -172,7 +191,7 @@ Pelo **Bluetooth**, as mesmas linhas chegam como notificações da característi
 
 ## 8. Validação já feita
 
-- `npm test`: 10 testes do protocolo e dos gestos passando.
+- `npm test`: testes do protocolo, dos gestos e dos desafios de movimento passando.
 - `npm run test:firmware`: o firmware real compilado com um Arduino simulado responde certo a `PING`, `DELAY`, `SONAR`, `RESET`, comando inválido, botão BOOT e distâncias (com `DELAY:500`, a distância chega 501 ms depois).
 - Teste no Chromium com uma porta serial falsa: autoconexão por `getPorts`, `HELLO` depois do lixo de boot, navegação com a mão, envio de `SONAR`/`DELAY`/`LED`, desconexão e reconexão automática pelo evento `connect`, o QR code vencido seguindo o foco, e o jogo no teclado sem Web Serial (aviso visível).
 - Bluetooth testado no Chromium com um aparelho BLE falso: conectar, receber linhas em pedaços de 20 bytes, enviar comandos e reconectar sozinho após uma queda.

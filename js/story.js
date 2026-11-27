@@ -1,6 +1,7 @@
 // Roteiro do jogo. Cada cena tem texto e escolhas.
 // Uma escolha pode: mudar saldo/paciência (effects), marcar algo (flags), mostrar um resultado (result)
 // e/ou abrir um minigame (minigame). Depois vai para a cena "next".
+// unlessFlag: a escolha some se a flag estiver marcada (ex.: sem bateria não dá para ler QR code).
 
 export const START_SALDO = 1400;
 export const START_PACIENCIA = 80;
@@ -15,7 +16,26 @@ export const SCENES = {
       'Hoje ele chega a Nova Aurora, a cidade mais tecnológica do país, para o aniversário da neta, Júlia.',
       'Ela mandou o endereço por mensagem... numa tal de "localização em tempo real" que ele não sabe abrir.',
     ],
-    choices: [{ label: 'Começar a jornada', next: 'rodoviaria' }],
+    choices: [{ label: 'Começar a jornada', next: 'esteira' }],
+  },
+
+  esteira: {
+    place: 'Desembarque do ônibus',
+    seed: 5,
+    mood: 0,
+    text: [
+      'O ônibus chega. Ninguém entrega as malas: elas saem numa esteira automática, rápida e cheia de malas parecidas.',
+      'Antônio precisa pegar três coisas: a mala marrom com fita vermelha, a sacola com o presente da Júlia e o chapéu de palha.',
+    ],
+    choices: [
+      { label: 'Pegar as coisas na esteira', minigame: 'bags', next: 'rodoviaria' },
+      {
+        label: 'Esperar a esteira esvaziar',
+        effects: { paciencia: -10 },
+        result: 'Vinte minutos depois sobram só as coisas dele, rodando sozinhas. Antônio pega tudo, mas já está atrasado.',
+        next: 'rodoviaria',
+      },
+    ],
   },
 
   rodoviaria: {
@@ -53,18 +73,44 @@ export const SCENES = {
       'Na porta, uma placa: "NÃO ACEITAMOS DINHEIRO. SOMENTE PIX."',
     ],
     choices: [
-      { label: 'Pagar com o app do banco', minigame: 'pix', next: 'praca' },
+      { label: 'Pagar com o app do banco', minigame: 'pix', next: 'bateria' },
       {
         label: 'Pedir para passar no cartão',
         effects: { saldo: -94.9, paciencia: -15 },
         result: 'O "funcionário" é um robô que repete: "Use o Pix, cidadão." Uma cliente paga por ele, e Antônio devolve em dinheiro, com R$ 10 a mais de agradecimento.',
-        next: 'praca',
+        next: 'bateria',
       },
       {
         label: 'Ligar para a Júlia pedir ajuda',
         effects: { paciencia: -18 },
         flags: ['semRemedio'],
         result: 'Caixa postal. Júlia está em aula. Antônio desiste do remédio por hoje.',
+        next: 'bateria',
+      },
+    ],
+  },
+
+  bateria: {
+    place: 'Poste de recarga',
+    seed: 13,
+    mood: -1,
+    text: [
+      'Saindo da farmácia, o celular apita: 2% de bateria. Sem celular, não tem mapa nem mensagem da Júlia.',
+      'Num poste, um carregador "sustentável": é só girar a manivela para gerar energia.',
+    ],
+    choices: [
+      { label: 'Girar a manivela', minigame: 'pump', next: 'praca' },
+      {
+        label: 'Comprar uma carga do ambulante',
+        effects: { saldo: -15, paciencia: -3 },
+        result: 'O aluguel de carregador é pelo app... que precisa de bateria. Um ambulante resolve: R$ 15 por meia carga.',
+        next: 'praca',
+      },
+      {
+        label: 'Seguir sem bateria',
+        effects: { paciencia: -6 },
+        flags: ['semBateria'],
+        result: 'Antônio guarda o celular no bolso. "No meu tempo, a gente perguntava o caminho."',
         next: 'praca',
       },
     ],
@@ -79,18 +125,44 @@ export const SCENES = {
       'Só uma plaquinha: "Escaneie o QR code para ver o cardápio".',
     ],
     choices: [
-      { label: 'Tentar ler o QR code com o celular', minigame: 'qr', next: 'portaria' },
+      { label: 'Tentar ler o QR code com o celular', minigame: 'qr', unlessFlag: 'semBateria', next: 'avenida' },
       {
         label: 'Perguntar se tem cardápio de papel',
         effects: { saldo: -28, paciencia: 10 },
         flags: ['gentileza'],
         result: 'A garçonete sorri: "Tem sim, seu Antônio. Eu guardo um pra quem precisa." Prato feito por R$ 28. A comida tem gosto de casa.',
-        next: 'portaria',
+        next: 'avenida',
       },
       {
         label: 'Comer um salgado da máquina',
         effects: { saldo: -12, paciencia: -10 },
         result: 'A máquina só aceita aproximação. Depois de três tentativas, cai uma coxinha fria. R$ 12.',
+        next: 'avenida',
+      },
+    ],
+  },
+
+  avenida: {
+    place: 'Avenida do Futuro',
+    seed: 29,
+    mood: 0,
+    text: [
+      'Para chegar ao prédio da Júlia, falta atravessar a Avenida do Futuro.',
+      'O sinal de pedestre fica aberto só 40 segundos. E patinetes elétricos e robôs de entrega não param para ninguém.',
+    ],
+    choices: [
+      { label: 'Atravessar na faixa', minigame: 'cross', next: 'portaria' },
+      {
+        label: 'Subir a passarela de 80 degraus',
+        effects: { paciencia: -14 },
+        result: 'Oitenta degraus depois, o joelho reclama. Do alto, Antônio vê a cidade inteira correndo.',
+        next: 'portaria',
+      },
+      {
+        label: 'Esperar alguém para atravessar junto',
+        effects: { paciencia: -4 },
+        flags: ['gentileza'],
+        result: 'Uma enfermeira atravessa com ele de braço dado. "Os patinetes aqui não respeitam nem a gente, seu Antônio."',
         next: 'portaria',
       },
     ],
