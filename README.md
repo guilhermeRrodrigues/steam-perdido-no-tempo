@@ -78,6 +78,8 @@ O projeto é um site estático: não tem build nem servidor. O `vercel.json` na 
 
 **Conferir se deu certo:** abra o link, aperte F12 → *Network*, recarregue e clique em `index.html` (ou no primeiro item): em *Response Headers* deve aparecer `permissions-policy: serial=(self), bluetooth=(self), usb=(self)`. Isso mostra que o `vercel.json` foi usado.
 
+**Por que o preset pode não aparecer como "Other":** o `vercel.json` vale na hora do deploy, mas o campo *Framework Preset* da tela de configurações mostra o que ficou salvo no projeto quando ele foi importado. O `.vercelignore` tira o `package.json` do deploy, então a Vercel trata o site como HTML puro e não tenta instalar nem compilar nada.
+
 **Se o deploy já existia com outras configurações:** em *Project → Settings → Build and Deployment*, deixe Framework Preset em **Other**, desligue os *Override* de Build/Output/Install, confira o *Root Directory* vazio e faça **Redeploy**.
 
 **Pelo terminal (opcional):**

@@ -1,3 +1,8 @@
+# Só o site estático vai para a Vercel (index.html, gravar.html, js/, vendor/, gravar/, style.css, imagens).
 firmware/
 tools/
+.github/
 *.md
+package.json
+package-lock.json
+node_modules/

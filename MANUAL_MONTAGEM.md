@@ -74,6 +74,10 @@ A conta: `5 V × 2k ÷ (1k + 2k) = 3,33 V`.
 
 ## 4. Ligações
 
+![Esquema de montagem: ESP32, mini protoboard e HC-SR04](montagem.svg)
+
+*Desenho completo da montagem ([montagem.svg](montagem.svg), ou [montagem.png](montagem.png) para imprimir). Fio vermelho = VCC→VIN, preto = GND, azul = Trig→D5, verde = Echo pelo divisor 1 kΩ/2 kΩ→D18.*
+
 ### 4.1 Tabela
 
 | Pino do HC-SR04 | Vai para | Observação |
