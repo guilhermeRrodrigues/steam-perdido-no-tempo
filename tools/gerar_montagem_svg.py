@@ -2,7 +2,7 @@
 """Gera montagem.svg (ESP32 + mini protoboard + HC-SR04)."""
 import sys
 
-W, H = 1500, 840
+W, H = 1510, 910
 FONT = "Arial, Helvetica, 'DejaVu Sans', sans-serif"
 MONO = "'DejaVu Sans Mono', Consolas, monospace"
 
@@ -47,12 +47,12 @@ def female_end(x, y, horizontal=True):
 
 a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="t d">')
 a('<title id="t">Perdido no tempo - montagem do controle (ESP32 + HC-SR04)</title>')
-a('<desc id="d">HC-SR04 na mini protoboard: VCC no VIN, Trig no GPIO 5, Echo pelo divisor 1k/2k ate o GPIO 18, GND no GND.</desc>')
+a('<desc id="d">HC-SR04 espetado na fileira a da protoboard de 400 furos: VCC no VIN, Trig no GPIO 5, Echo pelo divisor 1k/2k ate o GPIO 18, GND no GND.</desc>')
 a(f'<rect width="{W}" height="{H}" fill="#fbfaf7"/>')
 
 # ---------- Título ----------
 text(30, 42, "Perdido no tempo · Montagem do controle", 26, weight="bold", fill="#111827")
-text(30, 68, "ESP32 DevKit + mini protoboard + sensor ultrassônico HC-SR04 (vista de cima)", 15, fill="#4b5563")
+text(30, 68, "ESP32 DevKit + protoboard de 400 furos + sensor ultrassônico HC-SR04 (vista de cima)", 15, fill="#4b5563")
 
 # ---------- ESP32 ----------
 EX0, EX1, EY0, EY1 = 140, 300, 100, 655
@@ -97,100 +97,134 @@ a('<rect x="212" y="612" width="8" height="5" fill="#60a5fa"/>')
 text(216, 628, "LED", 8, "middle", fill="#93c5fd")
 a('<rect x="202" y="643" width="36" height="22" rx="3" fill="#b8bec7" stroke="#6b7280"/>')
 # cabo USB
-a('<path d="M 220 665 L 220 690 Q 220 700 230 700 L 330 700" fill="none" stroke="#6b7280" stroke-width="9" stroke-linecap="round"/>')
-a('<path d="M 330 700 l -2 -6 l 14 6 l -14 6 z" fill="#6b7280"/>')
-text(352, 704, "cabo USB de dados → computador", 12, fill="#4b5563")
+a('<path d="M 220 665 L 220 800" fill="none" stroke="#6b7280" stroke-width="9" stroke-linecap="round"/>')
+text(232, 800, "cabo USB de dados → computador", 12, fill="#4b5563")
 text(220, 90, "ESP32 DevKit V1", 14, "middle", "bold", "#111827")
 
-# ---------- Protoboard ----------
-BX0, BX1, BY0, BY1 = 598, 1002, 372, 646
-def cx(c): return 625 + (c - 1) * 22
-rows_top = {r: 400 + 22 * i for i, r in enumerate("abcde")}
-rows_bot = {r: 532 + 22 * i for i, r in enumerate("fghij")}
-ROW = {**rows_top, **rows_bot}
+# ---------- Protoboard (meia protoboard, 400 furos, 30 colunas) ----------
+# Igual às fotos: protoboard deitada, HC-SR04 espetado na fileira "a" (beirada
+# de baixo) com os "olhos" para fora, resistores logo ao lado e quatro jumpers
+# saindo da fileira "e" até o ESP32.
+BX0, BX1, BY0, BY1 = 470, 1176, 262, 670
+P = 22
+def cx(c): return 507 + (c - 1) * P
+ROW = {r: 336 + P * i for i, r in enumerate("jihgf")}
+ROW.update({r: 482 + P * i for i, r in enumerate("edcba")})
+RAIL_T = (284, 304)
+RAIL_B = (612, 632)
+
 a(f'<rect x="{BX0}" y="{BY0}" width="{BX1-BX0}" height="{BY1-BY0}" rx="8" fill="#f3f1ea" stroke="#c9c4b5" stroke-width="2"/>')
-a(f'<rect x="{BX0+6}" y="502" width="{BX1-BX0-12}" height="16" rx="3" fill="#e4e0d3"/>')
-for c in range(1, 18):
+# trilhos de alimentação (não usados nesta montagem)
+for (y1, y2) in (RAIL_T, RAIL_B):
+    a(f'<line x1="{BX0+20}" y1="{y1-10}" x2="{BX1-20}" y2="{y1-10}" stroke="#3b82f6" stroke-width="1.6" opacity=".7"/>')
+    a(f'<line x1="{BX0+20}" y1="{y2+10}" x2="{BX1-20}" y2="{y2+10}" stroke="#ef4444" stroke-width="1.6" opacity=".7"/>')
+    for c in range(1, 31):
+        if (c - 1) % 6 == 5:
+            continue
+        for y in (y1, y2):
+            a(f'<rect x="{cx(c)-3}" y="{y-3}" width="6" height="6" rx="1" fill="#8a8578"/>')
+# vale do meio
+a(f'<rect x="{BX0+8}" y="{(ROW["f"]+ROW["e"])/2-8}" width="{BX1-BX0-16}" height="16" rx="3" fill="#e4e0d3"/>')
+used = {17: C_ECHO, 20: C_VIN, 21: C_TRIG, 22: "#9ca3af", 23: C_GND}
+for c in range(1, 31):
     for r, y in ROW.items():
         a(f'<rect x="{cx(c)-3.5}" y="{y-3.5}" width="7" height="7" rx="1" fill="#4b4b4b"/>')
-    text(cx(c), 514, str(c), 9, "middle", "bold", "#6b6455")
+    bold = "bold" if c in used else "normal"
+    colr = used.get(c, "#8a8373") if c in used else "#8a8373"
+    text(cx(c), ROW["j"] - 14, str(c), 8.5, "middle", bold, "#8a8373")
+    text(cx(c), (ROW["f"] + ROW["e"]) / 2 + 3.5, str(c), 9, "middle", bold, colr)
 for r, y in ROW.items():
-    text(608, y + 3.5, r, 9, "middle", fill="#8a8373")
-# destaque das colunas usadas (5 furos ligados)
-for c, col in ((1, C_VIN), (2, C_TRIG), (3, "#9ca3af"), (4, C_GND), (8, C_ECHO)):
-    a(f'<rect x="{cx(c)-8}" y="391" width="16" height="106" rx="5" fill="none" stroke="{col}" stroke-width="1.6" stroke-dasharray="3 3" opacity=".75"/>')
-text(818, 640, "mini protoboard (170 furos) · cada coluna de 5 furos é ligada por dentro", 11, "middle", fill="#6b6455")
+    text(BX0 + 16, y + 3.5, r, 9, "middle", fill="#8a8373")
+    text(BX1 - 14, y + 3.5, r, 9, "middle", fill="#8a8373")
+# destaque das colunas usadas (a–e, 5 furos ligados por dentro)
+for c, col in used.items():
+    a(f'<rect x="{cx(c)-8}" y="{ROW["e"]-10}" width="16" height="{ROW["a"]-ROW["e"]+20}" rx="5" fill="none" stroke="{col}" stroke-width="1.6" stroke-dasharray="3 3" opacity=".8"/>')
+text(BX0 + 12, BY1 - 7, "protoboard de 400 furos · em cada coluna, os furos a-b-c-d-e são ligados por dentro", 10.5, "start", fill="#6b6455")
 
-# ---------- HC-SR04 ----------
-SX0, SX1, SY0, SY1 = 528, 788, 160, 330
+# ---------- HC-SR04 (em pé na beirada, olhando para fora) ----------
+pins = [(20, "VCC", C_VIN), (21, "Trig", C_TRIG), (22, "Echo", C_ECHO), (23, "GND", C_GND)]
+SCX = (cx(20) + cx(23)) / 2
+SX0, SX1, SY0, SY1 = SCX - 135, SCX + 135, 684, 816
+# pernas do conector entrando na fileira a
+for c, n, col in pins:
+    a(f'<rect x="{cx(c)-1.6}" y="{ROW["a"]}" width="3.2" height="{SY0-ROW["a"]+4}" fill="#b8bec7" stroke="#7b818a" stroke-width=".6"/>')
+    a(f'<circle cx="{cx(c)}" cy="{ROW["a"]}" r="3.6" fill="#8f959e"/>')
+a(f'<rect x="{cx(20)-12}" y="{SY0-12}" width="{cx(23)-cx(20)+24}" height="14" rx="2" fill="#111"/>')
 a(f'<rect x="{SX0}" y="{SY0}" width="{SX1-SX0}" height="{SY1-SY0}" rx="6" fill="#1565a8" stroke="#0d3f6b" stroke-width="2"/>')
-for ccx in (583, 733):
-    a(f'<circle cx="{ccx}" cy="235" r="56" fill="#c3c8cf" stroke="#6b7280" stroke-width="2"/>')
-    a(f'<circle cx="{ccx}" cy="235" r="44" fill="#3a3a3a"/>')
-    for rr in (36, 26, 16):
-        a(f'<circle cx="{ccx}" cy="235" r="{rr}" fill="none" stroke="#555" stroke-width="2"/>')
-text(658, 185, "HC-SR04", 13, "middle", "bold", "#fff")
-text(583, 147, "T (emissor)", 10, "middle", fill="#6b7280")
-text(733, 147, "R (receptor)", 10, "middle", fill="#6b7280")
-a('<rect x="612" y="314" width="92" height="16" rx="2" fill="#111"/>')
-sensor_pins = [("VCC", C_VIN), ("Trig", C_TRIG), ("Echo", C_ECHO), ("GND", C_GND)]
-for i, (n, col) in enumerate(sensor_pins):
-    x = cx(1 + i)
-    text(x, 307, n, 8.5, "middle", "bold", "#fff")
-    a(f'<rect x="{x-1.6}" y="330" width="3.2" height="70" fill="#b8bec7" stroke="#7b818a" stroke-width=".6"/>')
-    a(f'<circle cx="{x}" cy="400" r="3.4" fill="#8f959e"/>')
-# chips de rótulo dos pinos do sensor (à esquerda, com linhas)
-for i, (n, col) in enumerate(sensor_pins):
-    y = 342 + i * 14
-    pass
+for ccx in (SX0 + 62, SX1 - 62):
+    a(f'<circle cx="{ccx}" cy="{SY0+70}" r="50" fill="#c3c8cf" stroke="#6b7280" stroke-width="2"/>')
+    a(f'<circle cx="{ccx}" cy="{SY0+70}" r="39" fill="#3a3a3a"/>')
+    for rr in (31, 22, 13):
+        a(f'<circle cx="{ccx}" cy="{SY0+70}" r="{rr}" fill="none" stroke="#555" stroke-width="2"/>')
+a(f'<rect x="{SCX-22}" y="{SY0+16}" width="44" height="18" rx="8" fill="#d9dde2" stroke="#8b929c"/>')
+text(SCX, SY0 + 52, "HC-SR04", 12, "middle", "bold", "#fff")
+for c, n, col in pins:
+    text(cx(c), SY0 + 12, n, 7.5, "middle", "bold", "#fff")
+text(SCX, SY1 + 18, "sensor em pé na beirada, com os \"olhos\" para fora da protoboard", 11, "middle", fill="#4b5563")
 
 # ---------- Resistores ----------
-def resistor(x1, x2, y, bands, label, label_dy):
+def resistor(c1, c2, y, bands):
+    x1, x2 = cx(c1), cx(c2)
     a(f'<line x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" stroke="#9aa0a8" stroke-width="2.4"/>')
     for x in (x1, x2):
-        a(f'<circle cx="{x}" cy="{y}" r="3.2" fill="#8f959e"/>')
+        a(f'<circle cx="{x}" cy="{y}" r="3.4" fill="#8f959e"/>')
     mx = (x1 + x2) / 2
-    a(f'<rect x="{mx-24}" y="{y-8}" width="48" height="16" rx="7" fill="#e8d4a8" stroke="#a88f5c"/>')
+    a(f'<rect x="{mx-22}" y="{y-7.5}" width="44" height="15" rx="7" fill="#e8d4a8" stroke="#a88f5c"/>')
     for i, bc in enumerate(bands):
-        bx = mx - 15 + i * 9 if i < 3 else mx + 15
-        a(f'<rect x="{bx-2}" y="{y-8}" width="4" height="16" fill="{bc}"/>')
-    text(mx, y + label_dy, label, 10.5, "middle", "bold", "#1f2937")
+        bx = mx - 13 + i * 8 if i < 3 else mx + 14
+        a(f'<rect x="{bx-2}" y="{y-7.5}" width="4" height="15" fill="{bc}"/>')
+    return mx
 
 BROWN, BLACK, RED, GOLD = "#7b4a1e", "#111", "#d62828", "#c9a227"
-resistor(cx(3), cx(8), ROW["b"], [BROWN, BLACK, RED, GOLD], "", 0)
-resistor(cx(8), cx(4), ROW["d"], [RED, BLACK, RED, GOLD], "", 0)
+m1 = resistor(22, 17, ROW["c"], [BROWN, BLACK, RED, GOLD])   # 1k: Echo -> nó
+m2 = resistor(17, 23, ROW["b"], [RED, BLACK, RED, GOLD])     # 2k: nó -> GND
 
-# ---------- Fios ----------
-# VIN: col 1 linha e -> por baixo -> lado esquerdo do ESP32
-wire([(cx(1), ROW["e"]), (cx(1), 728), (112, 728), (112, PY[14]), (PL - 12, PY[14])], C_VIN)
-male_tip(cx(1), ROW["e"], C_VIN)
-female_end(PL - 6, PY[14])
-# Trig: col 2 linha b -> D5
-wire([(cx(2), ROW["b"]), (430, ROW["b"]), (430, PY[7]), (PR + 12, PY[7])], C_TRIG)
-male_tip(cx(2), ROW["b"], C_TRIG)
-female_end(PR + 6, PY[7])
-# GND: col 4 linha c -> GND (lado direito)
-wire([(cx(4), ROW["c"]), (400, ROW["c"]), (400, PY[13]), (PR + 12, PY[13])], C_GND)
-male_tip(cx(4), ROW["c"], C_GND)
-female_end(PR + 6, PY[13])
-# Echo/D18: col 8 linha a -> por cima do sensor -> D18
-wire([(cx(8), ROW["a"]), (cx(8), 350), (812, 350), (812, 112), (460, 112), (460, PY[6]), (PR + 12, PY[6])], C_ECHO)
-male_tip(cx(8), ROW["a"], C_ECHO)
-female_end(PR + 6, PY[6])
+# ---------- Fios (jumpers macho-fêmea, curvos como nas fotos) ----------
+def smooth(points):
+    """Catmull-Rom -> Bezier cúbica passando por todos os pontos."""
+    d = f"M {points[0][0]:.1f} {points[0][1]:.1f}"
+    pts = [points[0]] + points + [points[-1]]
+    for i in range(1, len(pts) - 2):
+        p0, p1, p2, p3 = pts[i - 1], pts[i], pts[i + 1], pts[i + 2]
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        d += f" C {c1[0]:.1f} {c1[1]:.1f} {c2[0]:.1f} {c2[1]:.1f} {p2[0]:.1f} {p2[1]:.1f}"
+    return d
 
-a(f'<rect x="{cx(1)-6}" y="504" width="12" height="13" rx="3" fill="#fff" stroke="{C_VIN}" stroke-width="1"/>')
-text(cx(1), 514, "1", 9, "middle", "bold", "#6b6455")
+def jumper(points, color):
+    d = smooth(points)
+    a(f'<path d="{d}" fill="none" stroke="#000" stroke-opacity="0.22" stroke-width="9" stroke-linecap="round" transform="translate(2,3)"/>')
+    a(f'<path d="{d}" fill="none" stroke="{color}" stroke-width="6" stroke-linecap="round"/>')
+    a(f'<path d="{d}" fill="none" stroke="#fff" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round" transform="translate(-1,-1.5)"/>')
+
+E = ROW["e"]
+# Echo/nó: coluna 17 -> D18
+jumper([(cx(17), E), (cx(17) - 20, 390), (720, 300), (470, 330), (PR + 30, PY[6])], C_ECHO)
+# Trig: coluna 21 -> D5
+jumper([(cx(21), E), (cx(21) - 10, 380), (780, 250), (480, 300), (PR + 30, PY[7])], C_TRIG)
+# GND: coluna 23 -> GND (lado direito do ESP32)
+jumper([(cx(23), E), (cx(23) + 6, 400), (870, 230), (560, 270), (390, 480), (PR + 30, PY[13])], C_GND)
+# VCC: coluna 20 -> VIN (lado esquerdo, por baixo da placa)
+jumper([(cx(20), E), (cx(20) - 14, 410), (820, 215), (430, 215), (360, 560), (300, 735), (150, 745), (100, 680), (PL - 30, PY[14])], C_VIN)
+for c, col in ((17, C_ECHO), (21, C_TRIG), (23, C_GND), (20, C_VIN)):
+    male_tip(cx(c), E, col)
+for y in (PY[6], PY[7], PY[13]):
+    a(f'<line x1="{PR+8}" y1="{y}" x2="{PR+30}" y2="{y}" stroke="#111" stroke-width="6"/>')
+    female_end(PR + 14, y)
+a(f'<line x1="{PL-30}" y1="{PY[14]}" x2="{PL-8}" y2="{PY[14]}" stroke="#111" stroke-width="6"/>')
+female_end(PL - 14, PY[14])
+
 # ---------- Chamadas (callouts) ----------
 def callout(x, y, tx, ty, lines, anchor="start", color="#374151"):
-    a(f'<line x1="{x}" y1="{y}" x2="{tx}" y2="{ty}" stroke="{color}" stroke-width="1.2"/>')
+    a(f'<polyline points="{x},{y} {tx + (0 if anchor == "start" else 0)},{ty}" fill="none" stroke="{color}" stroke-width="1.2"/>')
     a(f'<circle cx="{x}" cy="{y}" r="2.5" fill="{color}"/>')
     for i, (s, w) in enumerate(lines):
         text(tx + (4 if anchor == "start" else -4), ty + 4 + i * 14, s, 11.5, anchor, w, color)
 
-callout(724, ROW["b"] - 9, 1022, 378, [("Resistor 1 kΩ", "bold"), ("marrom · preto · vermelho", "normal"), ("coluna 3 (Echo) → coluna 8", "normal")])
-callout(736, ROW["d"] + 9, 1022, 448, [("Resistor 2 kΩ", "bold"), ("vermelho · preto · vermelho", "normal"), ("coluna 8 → coluna 4 (GND)", "normal")])
-a(f'<circle cx="{cx(8)}" cy="{ROW["c"]}" r="7" fill="none" stroke="{C_ECHO}" stroke-width="2.4"/>')
-callout(cx(8) + 7, ROW["c"], 1022, 532, [("Meio do divisor ≈ 3,3 V", "bold"), ("daqui sai o fio para o D18", "normal")], color="#0f6b3a")
+callout(m1 - 6, ROW["c"] + 7, 640, 748, [("Resistor 1 kΩ (fileira c)", "bold"), ("marrom · preto · vermelho", "normal"), ("coluna 22 (Echo) → coluna 17", "normal")], "end")
+callout(m2 + 10, ROW["b"] + 7, 640, 806, [("Resistor 2 kΩ (fileira b)", "bold"), ("vermelho · preto · vermelho", "normal"), ("coluna 17 → coluna 23 (GND)", "normal")], "end")
+a(f'<circle cx="{cx(17)}" cy="{ROW["d"]}" r="7" fill="none" stroke="{C_ECHO}" stroke-width="2.4"/>')
+callout(cx(17) - 7, ROW["d"], 640, 698, [("Meio do divisor ≈ 3,3 V", "bold"), ("coluna 17: daqui sai o fio do D18", "normal")], "end", color="#0f6b3a")
 
 # rótulos sobre os fios
 def tag(x, y, s, col):
@@ -198,10 +232,11 @@ def tag(x, y, s, col):
     a(f'<rect x="{x - w/2}" y="{y-10}" width="{w}" height="20" rx="10" fill="#fff" stroke="{col}" stroke-width="2"/>')
     text(x, y + 4, s, 11, "middle", "bold", col)
 
-tag(636, 112, "Echo → divisor → GPIO 18", C_ECHO)
-tag(535, ROW["b"], "Trig → GPIO 5", C_TRIG)
-tag(400, 505, "GND → GND", C_GND)
-tag(400, 728, "VCC → VIN (5 V)", C_VIN)
+tag(1010, 160, "Echo → divisor → D18", C_ECHO)
+tag(1010, 190, "Trig → D5", C_TRIG)
+tag(1010, 220, "GND → GND", C_GND)
+tag(1010, 130, "VCC → VIN (5 V)", C_VIN)
+text(1010, 106, "Os 4 jumpers, da protoboard (fileira e) até o ESP32", 11, "middle", "bold", "#374151")
 
 # ---------- Painel lateral: legenda ----------
 LX = 1240
@@ -223,7 +258,7 @@ for col, t1, t2 in leg:
 y += 4
 text(LX + 16, y, "Ligações", 15, weight="bold", fill="#111827")
 y += 10
-rows = [("HC-SR04", "Protob.", "ESP32"), ("VCC", "col. 1", "VIN"), ("Trig", "col. 2", "D5"), ("Echo", "col. 3 → 1 kΩ", "—"), ("nó", "col. 8", "D18"), ("GND", "col. 4", "GND")]
+rows = [("HC-SR04", "Protob.", "ESP32"), ("VCC", "col. 20", "VIN"), ("Trig", "col. 21", "D5"), ("Echo", "col. 22 → 1 kΩ", "—"), ("nó", "col. 17", "D18"), ("GND", "col. 23", "GND")]
 for i, (p, c, e) in enumerate(rows):
     yy = y + 6 + i * 22
     if i == 0:
@@ -271,13 +306,14 @@ text(LX + 16, yg + 64, "em série no lugar dele.", 11, fill="#4b5563")
 # avisos
 y = yg + 88
 a(f'<rect x="{LX+12}" y="{y}" width="226" height="78" rx="6" fill="#fef3c7" stroke="#f59e0b"/>')
-text(LX + 22, y + 18, "⚠ Desligue o USB para montar.", 11.5, weight="bold", fill="#92400e")
+text(LX + 22, y + 18, "Atenção: desligue o USB para montar.", 11.5, weight="bold", fill="#92400e")
 text(LX + 22, y + 35, "VCC e GND trocados queimam", 11, fill="#92400e")
 text(LX + 22, y + 50, "o sensor. Nunca ligue o Echo", 11, fill="#92400e")
 text(LX + 22, y + 64 - 0, "", 1)
 a(f'<text x="{LX+22}" y="{y+65}" font-family="{FONT}" font-size="11" fill="#92400e">direto no ESP32.</text>')
 
-text(30, 825, "Em algumas placas o pino VIN se chama 5V ou VUSB. Os jumpers que vão até o ESP32 são macho-fêmea (a ponta fêmea encaixa no pino da placa).", 11.5, fill="#6b7280")
+text(30, 884, "Em algumas placas o pino VIN se chama 5V ou VUSB. Jumpers macho-fêmea: a ponta fêmea encaixa no pino do ESP32.", 11.5, fill="#6b7280")
+text(30, 902, "As colunas são um exemplo: qualquer coluna serve, desde que as ligações sejam as mesmas. A cor dos seus jumpers pode ser outra; o que vale é o pino.", 11.5, fill="#6b7280")
 
 a("</svg>")
 open(sys.argv[1], "w", encoding="utf-8").write("\n".join(out))

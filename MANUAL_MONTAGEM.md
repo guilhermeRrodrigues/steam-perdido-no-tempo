@@ -74,7 +74,7 @@ A conta: `5 V × 2k ÷ (1k + 2k) = 3,33 V`.
 
 ## 4. Ligações
 
-![Esquema de montagem: ESP32, mini protoboard e HC-SR04](montagem.svg)
+![Esquema de montagem: ESP32, protoboard e HC-SR04](montagem.svg)
 
 *Desenho completo da montagem ([montagem.svg](montagem.svg), ou [montagem.png](montagem.png) para imprimir). Fio vermelho = VCC→VIN, preto = GND, azul = Trig→D5, verde = Echo pelo divisor 1 kΩ/2 kΩ→D18.*
 
@@ -134,31 +134,30 @@ flowchart LR
   SG --> EG
 ```
 
-### 4.4 Montagem na mini protoboard, passo a passo
+### 4.4 Montagem na protoboard, passo a passo
 
-O ESP32 é largo e **não cabe bem** na mini protoboard. Então a placa fica do lado, e você liga com jumpers **macho-fêmea** (a ponta fêmea encaixa direto no pino do ESP32).
+O ESP32 é largo e **não cabe bem** na protoboard. Então a placa fica do lado, e você liga com jumpers **macho-fêmea** (a ponta fêmea encaixa direto no pino do ESP32).
 
-A mini protoboard tem **17 colunas**, cada uma com 5 furos ligados entre si (de cima para baixo, de cada lado do vale). Vamos usar só a metade de cima.
+A protoboard de 400 furos tem **30 colunas**. Em cada coluna, os 5 furos de um lado do vale (**a-b-c-d-e**) são ligados entre si. Vamos usar só essa metade, a de baixo, com o sensor na beirada. As colunas abaixo são as do desenho; qualquer outra serve, desde que as ligações sejam as mesmas.
 
 1. **Desligue o USB** enquanto monta.
-2. Encaixe o **HC-SR04** na beirada da protoboard, com os "olhos" virados para fora, e cada pino numa coluna diferente. Exemplo: VCC na coluna 1, Trig na 2, Echo na 3, GND na 4.
-3. **Resistor de 1 kΩ:** uma perna na **coluna 3** (Echo) e a outra na **coluna 8**.
-4. **Resistor de 2 kΩ:** uma perna na **coluna 8** e a outra na **coluna 4** (GND).
-5. Jumpers macho-fêmea até o ESP32:
-   - coluna 1 (VCC) → **VIN**
-   - coluna 2 (Trig) → **D5**
-   - coluna 8 (meio do divisor) → **D18**
-   - coluna 4 (GND) → **GND**
+2. Encaixe o **HC-SR04** em pé na fileira **a**, com os "olhos" virados para fora da protoboard: VCC na **coluna 20**, Trig na **21**, Echo na **22**, GND na **23**.
+3. **Resistor de 1 kΩ** (fileira c): uma perna na **coluna 22** (Echo) e a outra na **coluna 17**.
+4. **Resistor de 2 kΩ** (fileira b): uma perna na **coluna 17** e a outra na **coluna 23** (GND).
+5. Jumpers macho-fêmea, saindo da fileira **e**, até o ESP32:
+   - coluna 20 (VCC) → **VIN**
+   - coluna 21 (Trig) → **D5**
+   - coluna 17 (meio do divisor) → **D18**
+   - coluna 23 (GND) → **GND**
 6. Confira com a tabela antes de ligar o USB. Atenção: **VCC e GND trocados queimam o sensor.**
 
 ```
- Mini protoboard (vista de cima, metade de cima)
- coluna:  1    2    3    4    5    6    7    8
-         VCC  Trig Echo GND                 
-          │    │    └─[1kΩ]───────────────┐ 
-          │    │         └───[2kΩ]────────┤ (2kΩ vai da coluna 8 até a 4)
-          │    │                          │ 
-        (VIN) (D5)       (GND)          (D18)    ← jumpers macho-fêmea até o ESP32
+ Protoboard (vista de cima, metade a-e)
+ coluna:  17        20   21   22   23
+          │         VCC  Trig Echo GND      ← sensor na fileira a
+          ├──[1kΩ]──────────────┘    │      (fileira c: 22 → 17)
+          └──[2kΩ]───────────────────┘      (fileira b: 17 → 23)
+        (D18)      (VIN) (D5)      (GND)    ← jumpers da fileira e até o ESP32
 ```
 
 ### 4.5 Posição do sensor para jogar
