@@ -9,7 +9,7 @@
 // Dificuldade do idoso: setLag(ms) atrasa tudo. Com o controle, quem atrasa é a própria placa
 // (comando DELAY), como um aparelho lento de verdade. No teclado, o atraso é feito aqui.
 
-import { TapDetector } from './protocol.js';
+import { TapDetector, HandFilter } from './protocol.js';
 
 const KEYMAP = {
   ArrowUp: 'UP', KeyW: 'UP',
@@ -28,12 +28,13 @@ export class Input {
     this.lagMs = 0;
     this.hand = { cm: null, at: 0, source: 'none' };
     this.tap = new TapDetector();
+    this.filter = new HandFilter(); // tira os pulos e falhas do sensor
     this.sensorSeen = false; // já recebemos alguma distância do sensor nesta sessão?
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'KeyR') {
         e.preventDefault();
-        const base = this.hand.cm == null ? 25 : this.hand.cm;
+        const base = this.hand.cm == null ? 20 : this.hand.cm;
         const cm = e.code === 'KeyR' ? null : Math.max(3, Math.min(60, base + (e.code === 'KeyQ' ? -2 : 2)));
         this._later(() => this._setHand(cm, 'keyboard'));
         return;
@@ -76,21 +77,33 @@ export class Input {
 
   _setHand(cm, source) {
     const now = performance.now();
+    if (source === 'sensor') {
+      this.rawCm = cm; // leitura crua, só para a tela de teste
+      cm = this.filter.feed(now, cm);
+    }
+    else this.filter.reset(); // teclado já é exato
     this.hand = { cm, at: now, source };
     if (this.tap.feed(now, cm)) this.queue.push('B');
   }
 
   /** Move a mão "de mentira" (teclado) continuamente. Usado no minigame do QR code. */
   nudgeHand(deltaCm) {
-    const base = this.hand.cm == null ? 25 : this.hand.cm;
+    const base = this.hand.cm == null ? 20 : this.hand.cm;
     this._setHand(Math.max(3, Math.min(60, base + deltaCm)), 'keyboard');
   }
 
   /** Distância atual da mão, ou null. Leitura velha do sensor (mais de 1 s) conta como "sem mão". */
   handCm() {
-    if (this.hand.cm == null) return null;
-    if (this.hand.source === 'sensor' && performance.now() - this.hand.at > 1000 + this.lagMs) return null;
-    return this.hand.cm;
+    if (this.hand.source !== 'sensor') return this.hand.cm;
+    const now = performance.now();
+    if (now - this.hand.at > 1000 + this.lagMs) return null;
+    // O filtro depende do tempo: "sem mão" só vale depois de um instante, e saltos se confirmam sozinhos
+    const cm = this.filter.value(now);
+    if (cm !== this.hand.cm) {
+      this.hand.cm = cm;
+      if (this.tap.feed(now, cm)) this.queue.push('B');
+    }
+    return cm;
   }
 
   /** Retorna e limpa as ações acumuladas desde o último quadro. */

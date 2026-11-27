@@ -88,13 +88,102 @@ export const cmd = {
 // ---------------------------------------------------------------------------
 
 export const HAND = {
-  TAP_MAX: 7,      // cm: mais perto que isso é a "zona do toque"
-  NEAR: 9,         // cm: começo da primeira opção
-  ZONE: 8,         // cm: tamanho padrão de cada opção
-  DWELL: 1300,     // ms com a mão parada na mesma opção para confirmar
+  TAP_MAX: 5,      // cm: mais perto que isso é a "zona do toque"
+  NEAR: 7,         // cm: começo da primeira opção
+  SPAN: 28,        // cm: espaço total das opções (de 7 a 35 cm), dividido entre elas
+  ZONE_MIN: 6,     // cm: faixa mínima de cada opção (quando são muitas)
+  ZONE_MAX: 12,    // cm: faixa máxima de cada opção (quando são poucas)
+  ZONE: 8,         // cm: tamanho "de referência" (3 a 4 opções)
+  HYST: 1.5,       // cm: a mão pode passar um pouco da borda sem trocar de opção (histerese)
+  DWELL: 1200,     // ms com a mão parada na mesma opção para confirmar
   TAP_TIME: 700,   // ms: entrar e sair da zona do toque mais rápido que isso = VOLTAR
   REARM: 6,        // cm que a mão precisa se mexer para poder confirmar de novo na mesma opção
 };
+
+/** Tamanho de cada faixa para n opções: todas cabem entre 7 e ~35 cm, e poucas opções ganham faixas largas. */
+export function zoneFor(n) {
+  if (!n) return HAND.ZONE;
+  return Math.max(HAND.ZONE_MIN, Math.min(HAND.ZONE_MAX, Math.floor(HAND.SPAN / n)));
+}
+
+// ---------------------------------------------------------------------------
+// Filtro da distância (no navegador). A placa já filtra, mas isto deixa estável mesmo com firmware antigo:
+//  - mediana das últimas leituras: uma leitura maluca sozinha não aparece;
+//  - salto grande (ex.: 20 -> 70 cm) só vale se a leitura seguinte confirmar (ou durar um pouquinho);
+//  - "sem mão" (-1) só vale depois de um tempo: o sensor perde o eco de vez em quando;
+//  - média suave por cima, para a régua não tremer.
+// ---------------------------------------------------------------------------
+
+export const FILTER = {
+  WINDOW: 5,       // leituras usadas na mediana
+  MAX_AGE: 600,    // ms: leitura mais velha que isso sai da mediana
+  JUMP: 10,        // cm: salto maior que isso precisa ser confirmado
+  CONFIRM_MS: 180, // ms: salto que dura isso sem ser desmentido também vale
+  HOLD_MS: 300,    // ms: segura a última posição quando o eco some
+  ALPHA: 0.6,      // 0..1: quanto a média segue a leitura nova (1 = sem suavizar)
+};
+
+const median = (arr) => {
+  const a = [...arr].sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+};
+
+export class HandFilter {
+  constructor(opts = {}) {
+    this.o = { ...FILTER, ...opts };
+    this.reset();
+  }
+
+  reset() {
+    this.samples = [];      // { t, cm }
+    this.out = null;        // distância filtrada
+    this.nullSince = null;  // desde quando só chega "sem mão"
+    this.candidate = null;  // { t, cm }: salto esperando confirmação
+  }
+
+  _accept(tMs, cm) {
+    this.samples.push({ t: tMs, cm });
+    this.samples = this.samples.filter((s) => tMs - s.t <= this.o.MAX_AGE).slice(-this.o.WINDOW);
+    const med = median(this.samples.map((s) => s.cm));
+    this.out = this.out == null ? med : this.out + this.o.ALPHA * (med - this.out);
+  }
+
+  _jumpTo(tMs, cm) {
+    this.samples = [];
+    this.out = null;
+    this.candidate = null;
+    this._accept(tMs, cm);
+  }
+
+  /** Recebe uma leitura (tempo em ms, cm ou null). Retorna a distância filtrada (ou null). */
+  feed(tMs, cm) {
+    if (cm == null) {
+      if (this.nullSince == null) this.nullSince = tMs;
+      return this.value(tMs);
+    }
+    if (this.nullSince != null && tMs - this.nullSince >= this.o.HOLD_MS) this.reset(); // a mão tinha saído mesmo
+    this.nullSince = null;
+    if (this.out != null && Math.abs(cm - this.out) > this.o.JUMP) {
+      const c = this.candidate;
+      if (c && Math.abs(cm - c.cm) <= this.o.JUMP / 2) this._jumpTo(tMs, cm); // confirmou o salto
+      else this.candidate = { t: tMs, cm };                                   // espera a próxima
+      return this.value(tMs);
+    }
+    this.candidate = null;
+    this._accept(tMs, cm);
+    return this.out;
+  }
+
+  /** Distância filtrada agora (o tempo importa: "sem mão" e saltos dependem de quanto tempo passou). */
+  value(tMs) {
+    if (this.nullSince != null && tMs - this.nullSince >= this.o.HOLD_MS) return null;
+    if (this.candidate && this.nullSince == null && tMs - this.candidate.t >= this.o.CONFIRM_MS) {
+      this._jumpTo(this.candidate.t, this.candidate.cm);
+    }
+    return this.out;
+  }
+}
 
 /** Detecta o "toquinho no ar": a mão chega bem perto do sensor e sai rápido. */
 export class TapDetector {
@@ -120,10 +209,11 @@ export class TapDetector {
 
 /** Converte distância em opção e confirma quando a mão fica parada. */
 export class HandPicker {
-  constructor({ near = HAND.NEAR, zone = HAND.ZONE, dwell = HAND.DWELL } = {}) {
+  constructor({ near = HAND.NEAR, zone = HAND.ZONE, dwell = HAND.DWELL, hyst = HAND.HYST } = {}) {
     this.near = near;
     this.zone = zone;
     this.dwell = dwell;
+    this.hyst = hyst;
     this.index = -1;
     this.heldMs = 0;
     this.armed = true;
@@ -136,6 +226,18 @@ export class HandPicker {
     return i >= 0 && i < n ? i : -1;
   }
 
+  /**
+   * Como zoneOf, mas com histerese: enquanto a mão não passar a borda da opção atual por mais
+   * de `hyst` cm, continua nela. Assim a mão tremendo na divisa não fica pulando de opção.
+   */
+  stickyZoneOf(cm, n) {
+    const i = this.zoneOf(cm, n);
+    if (this.index < 0 || this.index >= n || cm == null || i === this.index) return i;
+    const h = Math.min(this.hyst, this.zone * 0.3);
+    const [a, b] = this.range(this.index);
+    return cm >= a - h && cm < b + h ? this.index : i;
+  }
+
   /** Chame ao abrir um menu: se a mão já estiver numa opção, ela precisa mudar antes de confirmar. */
   reset(cm = null, n = 0) {
     this.index = this.zoneOf(cm, n);
@@ -146,7 +248,7 @@ export class HandPicker {
 
   /** Chame a cada quadro. Retorna o índice confirmado, ou -1. */
   update(dtMs, cm, n) {
-    const i = this.zoneOf(cm, n);
+    const i = this.stickyZoneOf(cm, n);
     if (i !== this.index) {
       this.index = i;
       this.heldMs = 0;

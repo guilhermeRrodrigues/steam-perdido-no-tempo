@@ -46,9 +46,14 @@ const uint8_t PINO_BOOT = 0;    // botao BOOT da propria placa
 const uint8_t PINO_LED = 2;     // LED azul da propria placa (algumas placas nao tem)
 
 // ---------------- Ajustes ----------------
-const unsigned long INTERVALO_MEDIDA = 60;   // ms entre medidas
+const unsigned long INTERVALO_MEDIDA = 60;   // ms entre medidas (cada medida = 5 pings)
 const unsigned long BATIMENTO = 400;         // ms: reenvia a distancia mesmo sem mudar (o jogo sabe que esta vivo)
-const int DIST_MAXIMA = 80;                  // cm: acima disso conta como "nada na frente"
+const int DIST_MAXIMA = 60;                  // cm: acima disso conta como "nada na frente" (o jogo usa ate ~35 cm)
+const int PINGS = 5;                         // pings por medida: usamos a mediana dos que voltaram
+const int SALTO = 12;                        // cm: pulo maior que isso so vale se a proxima medida confirmar
+const float SUAVIZACAO = 0.4;                // 0..1: quanto a media segue a medida nova (1 = sem suavizar)
+const float HISTERESE = 0.8;                 // cm: so manda numero novo se a media andar mais que isso
+const unsigned long SEGURA_SEM_MAO = 250;    // ms: o eco falha as vezes; so manda -1 depois desse tempo sem eco
 
 // ---------------- Saida: USB serial + Bluetooth ----------------
 void executarComando(char* cmd);
@@ -151,9 +156,18 @@ void enviarFila() {
 }
 
 // ---------------- Ultrassonico ----------------
+// O HC-SR04 "pula" bastante: perde o eco, pega o eco de outra coisa, treme 1-2 cm.
+// Por isso cada medida passa por 4 etapas antes de ir para o jogo:
+//   1) 5 pings e mediana dos que voltaram (descarta leituras malucas)
+//   2) pulo grande precisa aparecer 2 vezes seguidas (descarta eco de outra coisa)
+//   3) media suave (tira o tremor)
+//   4) histerese: o numero so muda se a media andar mais que 0,8 cm (nada de 20-21-20-21)
+// E o "sem mao" (-1) so e mandado depois de 250 ms sem nenhum eco.
 bool sonarLigado = true;
-unsigned long ultimaMedida = 0, ultimoEnvio = 0;
-int ultimaDist = -2;
+unsigned long ultimaMedida = 0, ultimoEnvio = 0, ultimaValida = 0;
+int ultimaDist = -2;         // ultimo numero enviado (-2 = forca reenviar)
+float suave = -1;            // media suave (-1 = sem mao)
+int saltoCandidato = -1;     // pulo grande esperando confirmacao
 
 int medirUmaVez() {
   digitalWrite(PINO_TRIG, LOW);
@@ -161,33 +175,70 @@ int medirUmaVez() {
   digitalWrite(PINO_TRIG, HIGH);
   delayMicroseconds(10);
   digitalWrite(PINO_TRIG, LOW);
-  // Espera o eco por no maximo 6 ms (~1 m). Mais longe que isso nao interessa.
-  unsigned long us = pulseIn(PINO_ECHO, HIGH, 6000UL);
+  // Espera o eco por no maximo 4 ms (~70 cm). Mais longe que isso nao interessa.
+  unsigned long us = pulseIn(PINO_ECHO, HIGH, 4000UL);
   if (us == 0) return -1;
   int cm = us / 58;  // o som vai e volta: 58 us por centimetro
   if (cm < 2 || cm > DIST_MAXIMA) return -1;
   return cm;
 }
 
-int medianaDe3(int a, int b, int c) {
-  return max(min(a, b), min(max(a, b), c));
+/** Faz PINGS medidas e devolve a mediana das que voltaram, ou -1 se a maioria falhou. */
+int medirMediana() {
+  int v[PINGS];
+  int n = 0;
+  for (int i = 0; i < PINGS; i++) {
+    int cm = medirUmaVez();
+    if (cm >= 0) v[n++] = cm;
+    delayMicroseconds(2500);  // deixa o eco anterior morrer antes do proximo ping
+  }
+  if (n < (PINGS + 1) / 2) return -1;
+  for (int i = 1; i < n; i++) {  // ordena (insercao: sao so 5 numeros)
+    int x = v[i], j = i - 1;
+    while (j >= 0 && v[j] > x) { v[j + 1] = v[j]; j--; }
+    v[j + 1] = x;
+  }
+  return v[n / 2];
 }
+
+float distancia(float a, float b) { return a > b ? a - b : b - a; }
 
 void lerUltrassom() {
   if (!sonarLigado || millis() - ultimaMedida < INTERVALO_MEDIDA) return;
   ultimaMedida = millis();
-  // Mediana de 3 medidas: descarta uma leitura maluca de vez em quando
-  int a = medirUmaVez();
-  delayMicroseconds(300);
-  int b = medirUmaVez();
-  delayMicroseconds(300);
-  int c = medirUmaVez();
-  int d = medianaDe3(a, b, c);
-  if (d != ultimaDist || millis() - ultimoEnvio > BATIMENTO) {
-    ultimaDist = d;
+  int d = medirMediana();
+
+  if (d >= 0) {
+    ultimaValida = millis();
+    if (suave < 0) {
+      suave = d;                                     // a mao acabou de chegar
+      saltoCandidato = -1;
+    } else if (distancia(d, suave) > SALTO) {
+      if (saltoCandidato >= 0 && distancia(d, saltoCandidato) <= SALTO / 2) {
+        suave = d;                                   // pulo confirmado: vai direto para la
+        saltoCandidato = -1;
+      } else {
+        saltoCandidato = d;                          // espera a proxima medida
+      }
+    } else {
+      saltoCandidato = -1;
+      suave += SUAVIZACAO * (d - suave);
+    }
+  } else if (suave >= 0 && millis() - ultimaValida > SEGURA_SEM_MAO) {
+    suave = -1;                                      // a mao saiu mesmo
+    saltoCandidato = -1;
+  }
+
+  int enviar;
+  if (suave < 0) enviar = -1;
+  else if (ultimaDist < 0 || distancia(suave, ultimaDist) >= HISTERESE) enviar = (int)(suave + 0.5);
+  else enviar = ultimaDist;
+
+  if (enviar != ultimaDist || millis() - ultimoEnvio > BATIMENTO) {
+    ultimaDist = enviar;
     ultimoEnvio = millis();
     char msg[20];
-    snprintf(msg, sizeof(msg), "DIST:%d", d);
+    snprintf(msg, sizeof(msg), "DIST:%d", enviar);
     enfileirar(msg);
   }
 }
@@ -240,6 +291,7 @@ void executarComando(char* cmd) {
   } else if (strcmp(cmd, "SONAR") == 0 && valor) {
     sonarLigado = atoi(valor) != 0;
     ultimaDist = -2;
+    suave = -1;
     saida(sonarLigado ? "OK:SONAR:1" : "OK:SONAR:0");
   } else if (strcmp(cmd, "DELAY") == 0 && valor) {
     atrasoMs = constrain(atol(valor), 0L, 3000L);

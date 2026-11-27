@@ -1,6 +1,6 @@
 // Testes do protocolo e da lógica da mão. Rode com: npm test
 import assert from 'node:assert/strict';
-import { LineSplitter, parseLine, cmd, TapDetector, HandPicker, HAND } from '../js/protocol.js';
+import { LineSplitter, parseLine, cmd, TapDetector, HandPicker, HandFilter, HAND, FILTER, zoneFor } from '../js/protocol.js';
 
 let passed = 0;
 const test = (name, fn) => { fn(); passed++; console.log('ok -', name); };
@@ -103,6 +103,73 @@ test('menu de uma opção grande: mexer a mão 6 cm já libera a confirmação',
   let got = -1;
   for (let t = 0; t < 2000 && got < 0; t += 50) got = p.update(50, 30, 1);
   assert.equal(got, 0);
+});
+
+test('filtro: leitura maluca isolada não aparece', () => {
+  const f = new HandFilter();
+  const seq = [20, 21, 20, 70, 20, 21, 3, 20];
+  const out = seq.map((cm, i) => f.feed(i * 60, cm));
+  for (const v of out) assert.ok(v >= 19 && v <= 22, `saiu ${v}`);
+});
+
+test('filtro: eco que some por um instante não vira "sem mão"', () => {
+  const f = new HandFilter();
+  f.feed(0, 18); f.feed(60, 18);
+  assert.equal(f.feed(120, null), 18);
+  assert.equal(f.value(120 + FILTER.HOLD_MS - 20), 18);
+  assert.equal(f.feed(400, 18), 18);
+});
+
+test('filtro: tirar a mão de verdade vira "sem mão" depois de um instante', () => {
+  const f = new HandFilter();
+  f.feed(0, 18);
+  f.feed(60, null);
+  assert.equal(f.value(60 + FILTER.HOLD_MS), null);
+  // a mão volta em outro lugar: vale na hora, sem esperar confirmação de salto
+  assert.equal(f.feed(1000, 30), 30);
+});
+
+test('filtro: mudança de lugar de verdade é aceita (confirmada ou por tempo)', () => {
+  const f = new HandFilter();
+  f.feed(0, 10); f.feed(60, 10);
+  f.feed(120, 30);
+  assert.ok(f.value(120) < 15);
+  assert.equal(f.feed(180, 30), 30);          // segunda leitura confirma
+  const g = new HandFilter();
+  g.feed(0, 10);
+  g.feed(60, 30);                              // firmware manda só quando muda: não vem segunda leitura
+  assert.equal(g.value(60 + FILTER.CONFIRM_MS), 30);
+});
+
+test('filtro: tremor de 1-2 cm fica suave', () => {
+  const f = new HandFilter();
+  let min = 99, max = 0;
+  for (let i = 0; i < 40; i++) {
+    const v = f.feed(i * 60, 20 + [0, 1, -1, 2, -2, 1][i % 6]);
+    if (i > 5) { min = Math.min(min, v); max = Math.max(max, v); }
+  }
+  assert.ok(max - min <= 2, `variou ${max - min} cm`);
+});
+
+test('faixas cabem entre 7 e ~35 cm e ficam largas com poucas opções', () => {
+  for (let n = 1; n <= 4; n++) assert.ok(HAND.NEAR + n * zoneFor(n) <= 36, `n=${n}`);
+  assert.equal(zoneFor(2), HAND.ZONE_MAX);
+  assert.ok(zoneFor(4) >= HAND.ZONE_MIN);
+});
+
+test('histerese: mão tremendo na divisa não troca de opção', () => {
+  const p = new HandPicker({ zone: 8 });
+  const border = HAND.NEAR + 8; // divisa entre opção 0 e 1
+  let picked = -1;
+  for (let t = 0; t < 3000 && picked < 0; t += 50) {
+    const cm = border - 1 + (t / 50 % 2) * 1.8; // 1 cm antes da divisa e 0,8 cm depois
+    picked = p.update(50, cm, 3);
+    assert.equal(p.index, 0);
+  }
+  assert.equal(picked, 0);
+  // passou bem da divisa: troca
+  p.update(50, border + 3, 3);
+  assert.equal(p.index, 1);
 });
 
 console.log(`\n${passed} testes passaram.`);
