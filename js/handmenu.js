@@ -1,16 +1,18 @@
 // Menu controlado pela mão (ou pelo teclado).
 //  - Mão: a distância escolhe a opção; parada ~1 s confirma; "toquinho no ar" = voltar.
+//    As faixas se ajustam ao número de opções (poucas opções = faixas largas), sempre entre 7 e ~35 cm.
 //  - Teclado: ↑/↓ escolhe, Enter confirma, Esc volta.
 //  - BOOT da placa: confirma a opção destacada na hora.
 
-import { HandPicker, HAND } from './protocol.js';
+import { HandPicker, HAND, zoneFor } from './protocol.js';
 import { COLORS, rrect, text, wrap, bar } from './gfx.js';
 
 export class HandMenu {
-  constructor(game, options, { zone = HAND.ZONE, dwell = HAND.DWELL, allowBack = false } = {}) {
+  constructor(game, options, { zone = null, dwell = HAND.DWELL, allowBack = false } = {}) {
     this.game = game;
     this.options = options; // lista de textos
-    this.picker = new HandPicker({ zone, dwell });
+    this.autoZone = zone == null; // sem zone fixa: faixa calculada pelo número de opções
+    this.picker = new HandPicker({ zone: zone ?? zoneFor(options.length), dwell });
     this.allowBack = allowBack;
     this.cursor = 0;
     this.usingHand = false;
@@ -20,6 +22,7 @@ export class HandMenu {
   setOptions(options) {
     this.options = options;
     this.cursor = Math.min(this.cursor, options.length - 1);
+    if (this.autoZone) this.picker.zone = zoneFor(options.length);
     this.picker.reset(this.game.input.handCm(), options.length);
   }
 

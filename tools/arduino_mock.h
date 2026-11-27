@@ -23,7 +23,12 @@ inline void delayMicroseconds(unsigned int) {}
 inline void pinMode(int, int) {}
 inline void digitalWrite(int p, int v) { g_pins[p] = v; }
 inline int digitalRead(int p) { return g_pins[p]; }
+extern int g_glitch;      // >0: a cada g_glitch pings, um falha (0) e outro dá eco maluco
+extern unsigned long g_pings;
 inline unsigned long pulseIn(int, int, unsigned long timeout) {
+  g_pings++;
+  if (g_glitch > 0 && g_pings % g_glitch == 0) return 0;
+  if (g_glitch > 0 && g_pings % g_glitch == 1) return 55 * 58;
   if (g_handCm < 0) return 0;
   unsigned long us = (unsigned long)(g_handCm * 58);
   return us > timeout ? 0 : us;

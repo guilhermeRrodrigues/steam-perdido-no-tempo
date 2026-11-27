@@ -29,7 +29,7 @@ export class QrGame extends Minigame {
 
   focusCm() {
     const t = this.time + this.seed;
-    return 24 + 8 * Math.sin(t * 0.45) + 3 * Math.sin(t * 1.3 + 1);
+    return 20 + 7 * Math.sin(t * 0.45) + 2 * Math.sin(t * 1.3 + 1); // entre ~11 e ~29 cm
   }
 
   update(dt, presses) {
@@ -74,7 +74,7 @@ export class QrGame extends Minigame {
     const shake = Math.sin(this.t * 23) * 3 + Math.cos(this.t * 17) * 2;
     // "Fora de foco": desenhamos o QR pequeno num canvas escondido e ampliamos (fica borrado).
     // É bem mais leve que filtro de blur.
-    const size = 220 * (cm == null ? 1 : Math.max(0.55, Math.min(1.5, 24 / cm)));
+    const size = 220 * (cm == null ? 1 : Math.max(0.55, Math.min(1.5, 20 / cm)));
     const res = Math.max(10, Math.round(size / (1 + blur * 0.9)));
     if (!this.off) this.off = document.createElement('canvas');
     this.off.width = res + 4;
@@ -91,7 +91,7 @@ export class QrGame extends Minigame {
 
     // régua de foco
     const x = 560, y = 110, h = 380;
-    const maxCm = 50;
+    const maxCm = 40;
     const toY = (v) => y + (Math.min(v, maxCm) / maxCm) * h;
     rrect(g, x, y, 70, h, 12, '#00000066', '#ffffff22', 1);
     g.fillStyle = '#3ddc8455';

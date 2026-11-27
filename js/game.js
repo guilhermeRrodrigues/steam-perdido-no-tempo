@@ -207,9 +207,9 @@ export class Game {
     text(g, 'Como jogar', 60, 70, { size: 34, weight: 'bold', color: COLORS.accent });
     const lines = [
       'O controle é a sua mão na frente do sensor ultrassônico.',
-      '• Cada faixa de distância é uma opção. A de cima da lista é a mais perto do sensor.',
+      '• Cada faixa de distância é uma opção (de 7 a 35 cm). A de cima da lista é a mais perto do sensor.',
       '• Deixe a mão parada por cerca de 1 segundo para confirmar.',
-      '• Aproxime bem rápido do sensor e tire (toquinho no ar) para VOLTAR ou fechar.',
+      '• Leve a mão a uns 5 cm do sensor e tire rápido (toquinho no ar) para VOLTAR ou fechar.',
       '• O botão BOOT da placa também confirma.',
       'Sem placa? Use o teclado: ↑ ↓ escolhem, Enter confirma, Esc volta. Q/E simulam a mão.',
       'Cada escolha muda o seu SALDO e a sua PACIÊNCIA. Se a paciência zerar, o jogo acaba.',
@@ -236,7 +236,9 @@ export class Game {
     text(g, statusText, 40, 92, { size: 16, color: st === 'ready' ? COLORS.good : COLORS.muted });
     const cm = this.input.handCm();
     text(g, cm == null ? 'Mão: —' : `Mão: ${Math.round(cm)} cm`, 40, 140, { size: 42, weight: 'bold' });
-    text(g, this.input.sensorSeen ? 'Recebendo distâncias do sensor.' : 'Nenhuma distância do sensor ainda (Q/E simulam).',
+    text(g, this.input.sensorSeen
+      ? `Recebendo distâncias do sensor (leitura crua: ${this.input.rawCm == null ? '—' : this.input.rawCm + ' cm'}, o jogo usa a filtrada).`
+      : 'Nenhuma distância do sensor ainda (Q/E simulam).',
       40, 170, { size: 14, color: COLORS.muted });
     this.menu.draw(g, 40, 200, 420, 50);
     text(g, 'Eventos', 520, 210, { size: 18, color: COLORS.accent });

@@ -17,7 +17,7 @@ O controle é a **mão do jogador** na frente de um **sensor ultrassônico HC-SR
 
 ## Como jogar
 
-- **Mão no sensor:** cada faixa de distância é uma opção (a de cima é a mais perto). **Mão parada ~1 s** confirma. **Toquinho rápido no ar** (aproximar e tirar) volta ou fecha propagandas.
+- **Mão no sensor:** cada faixa de distância é uma opção (a de cima é a mais perto). **Mão parada ~1 s** confirma. A área de jogo é de **7 a 35 cm**, e as faixas ficam mais largas quando há poucas opções. A placa e o jogo filtram a leitura (mediana, pulos confirmados, histerese), então tremer um pouco não troca de opção. **Toquinho rápido no ar** (aproximar e tirar) volta ou fecha propagandas.
 - **Botão BOOT** da placa: confirma na hora.
 - **Teclado:** ↑ ↓ escolhem, Enter confirma, Esc volta. **Q / E / R** simulam a mão (aproximar, afastar, tirar).
 

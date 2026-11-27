@@ -3,6 +3,8 @@
 unsigned long g_ms = 0;
 int g_pins[64] = {0};
 double g_handCm = -1;
+int g_glitch = 0;
+unsigned long g_pings = 0;
 MockSerial Serial;
 #include "../firmware/perdido_controle/perdido_controle.ino"
 
@@ -32,5 +34,17 @@ int main() {
   Serial.send("BLINK:2\nSONAR:0\nRESET\nXYZ\n");
   run(50);
   printf("%s", Serial.out.c_str());
-  return 0;
+  Serial.out.clear();
+
+  // Sensor ruim: mão parada a 22 cm, mas a cada 4 pings um falha e outro dá eco a 55 cm
+  printf("--- sensor com falhas: mão parada a 22 cm por 3 s\n");
+  g_handCm = 22; run(500); Serial.out.clear();
+  g_glitch = 4; run(3000);
+  int ruins = 0, msgs = 0;
+  for (size_t i = 0; (i = Serial.out.find("DIST:", i)) != std::string::npos; i++) {
+    int v = atoi(Serial.out.c_str() + i + 5); msgs++;
+    if (v != 22) ruins++;
+  }
+  printf("%d mensagens DIST, %d diferentes de 22\n", msgs, ruins);
+  return ruins == 0 ? 0 : 1;
 }

@@ -165,7 +165,10 @@ A mini protoboard tem **17 colunas**, cada uma com 5 furos ligados entre si (de 
 
 - Deixe o sensor **em pé, olhando para cima** (você mexe a mão por cima dele, como num teremim) ou **olhando para você** em cima da mesa.
 - Use a **palma da mão aberta**, reta, de frente para o sensor. Dedos e mangas largas confundem a leitura.
-- A área de jogo vai de uns **6 cm até uns 45 cm** do sensor. Nada mais pode estar nessa frente (copo, celular, parede).
+- A área de jogo vai de uns **7 cm até uns 35 cm** do sensor (um palmo e pouco). Não precisa ficar longe: sente perto e mexa só o antebraço. Nada mais pode estar nessa frente até uns 60 cm (copo, celular, parede); depois disso a placa ignora.
+- Poucas opções na tela = faixas largas (até 12 cm cada). Muitas opções = faixas de 6 a 7 cm.
+- **Toquinho no ar** (voltar): leve a mão até uns **5 cm** do sensor e tire rápido.
+- A placa e o jogo filtram a leitura: um "pulo" ou uma falha de eco sozinhos não mudam a opção, e a mão pode tremer um pouco na divisa entre duas opções sem trocar. Na tela **Testar controle** dá para comparar a leitura crua com a filtrada.
 
 ---
 
@@ -265,7 +268,7 @@ O Bluetooth tem um pouquinho mais de atraso que o cabo. Para este jogo, isso nã
 | "PerdidoNoTempo" não aparece no Bluetooth | Ligue o Bluetooth do computador. Confira se a placa está ligada e foi gravada com o firmware novo (com Bluetooth). Feche outras abas conectadas a ela. |
 | Upload trava em `Connecting....` | Segure **BOOT** no começo da gravação. |
 | Só aparece `DIST:-1` | Confira VCC no **VIN** (5 V) e GND. Confira Trig no D5 e o divisor indo para o D18. Se ligou VCC no 3V3, seu sensor pode não aceitar: use 5 V com o divisor. |
-| A distância pula muito | Use a palma aberta e reta. Tire objetos da frente do sensor. Não deixe o sensor apontado para uma parede próxima. |
+| A distância pula muito | Grave o firmware novo (ele filtra as leituras). Use a palma aberta e reta, a menos de 35 cm. Tire objetos da frente do sensor e não deixe ele apontado para uma parede próxima. |
 | A distância fica parada num número | O divisor pode estar invertido: o **1 kΩ** fica do lado do Echo e o **2 kΩ** do lado do GND. |
 | Letras estranhas no Monitor Serial | Velocidade errada: use **115200**. Um pouco de "lixo" ao ligar é normal no ESP32. |
 | O jogo diz "porta ocupada" | Feche o Monitor Serial da Arduino IDE ou a outra aba do jogo. |
